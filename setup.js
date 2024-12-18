@@ -1,32 +1,35 @@
 (function (global) {
   "use strict";
 
-  const ownKeys = Reflect.ownKeys;
-  const getOwnPropertyDescriptor = Reflect.getOwnPropertyDescriptor;
-  const defineProperty = Reflect.defineProperty;
   const apply = Reflect.apply;
+  const log = console.log;
 
   const EventTarget_prototype_addEventListener =
     EventTarget.prototype.addEventListener;
   const EventTarget_prototype_removeEventListener =
     EventTarget.prototype.removeEventListener;
-  const Node = global.Node;
   const HTMLInputElement = global.HTMLInputElement;
 
-  let loggingEnabled = false; // TODO: rewrite code to manage yield and await
+  let loggingEnabled = false;
+  let loggingTimeoutId = undefined;
+
+  function enableLogging() {
+    loggingEnabled = true;
+    if (loggingTimeoutId !== undefined) {
+      clearTimeout(loggingTimeoutId);
+    }
+    loggingTimeoutId = setTimeout(function () {
+      loggingEnabled = false;
+      loggingTimeoutId = undefined;
+    }, 1000);
+  }
 
   function createListenerWrapper(listener) {
     return function (e) {
       const target = e.target;
       if (target instanceof HTMLInputElement && target.type === "password") {
-        loggingEnabled = true;
-        try {
-          return apply(listener, this, arguments);
-        } finally {
-          loggingEnabled = false;
-        }
+        enableLogging();
       }
-
       return apply(listener, this, arguments);
     };
   }
@@ -79,41 +82,19 @@
   EventTarget.prototype.addEventListener = addEventListener;
   EventTarget.prototype.removeEventListener = removeEventListener;
 
-  function createNodeFunctionWrapper(f) {
-    return function () {
-      if (loggingEnabled) {
-        console.log(f.name, this.constructor.name, this, arguments);
-      }
-      return apply(f, this, arguments);
-    };
-  }
-
-  function getNodeConstructors(global) {
-    return ownKeys(global)
-      .map((k) => getOwnPropertyDescriptor(global, k).value)
-      .filter(
-        (v) => v && typeof v === "function" && v.prototype instanceof Node
-      );
-  }
-
-  for (const C of getNodeConstructors(global)) {
-    const proto = C.prototype;
-    for (const k of ownKeys(proto)) {
-      const d = getOwnPropertyDescriptor(proto, k);
-      if (!d.configurable) continue;
-      if (typeof d.value === "function") {
-        if (!d.value.prototype) {
-          defineProperty(proto, k, {
-            __proto__: d,
-            value: createNodeFunctionWrapper(d.value),
-          });
-        }
-      } else if (typeof d.set === "function") {
-        defineProperty(proto, k, {
-          __proto__: d,
-          set: createNodeFunctionWrapper(d.set),
-        });
-      }
+  const observer = new MutationObserver(function (mutationList) {
+    if (loggingEnabled) {
+      log(mutationList);
     }
-  }
+  });
+  observer.observe(document, {
+    attributes: true,
+    attributeOldValue: true,
+    characterData: true,
+    characterDataOldValue: true,
+    childList: true,
+    subtree: true,
+  });
+
+  log("setup completed");
 })(this);
