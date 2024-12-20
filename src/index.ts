@@ -1,21 +1,46 @@
-import path from "path";
+import buildSetup from "./buildSetup";
+import instrument from "./instrument";
 import timeout from "./timeout";
-import { chromium, Page } from "playwright";
-import { rootDir } from "./rootDir";
+import {
+  chromium,
+  Frame,
+  Locator,
+  Page
+  } from "playwright";
 
-async function findAndFillPasswordField(page: Page) {
+async function detectPSM(page: Page) {
   await timeout(10000); // wait enough time for the frames to spawn
-  await Promise.allSettled(
-    page.frames().map((frame) =>
-      frame
-        .locator('input[type="password"]')
-        .first()
-        .pressSequentially("123456", {
-          delay: 100,
-          timeout: 10000,
+
+  const framePwdFieldPairs = (
+    await Promise.allSettled(
+      page
+        .frames()
+        .map((frame): [Frame, Locator] => [
+          frame,
+          frame.locator('input[type="password"]').first(),
+        ])
+        .map(async (pair) => {
+          const [_, pwdField] = pair;
+          return (await pwdField.count()) > 0 ? pair : null;
         })
     )
-  );
+  )
+    .filter((result) => result.status === "fulfilled")
+    .map(({ value }) => value)
+    .filter((value): value is NonNullable<typeof value> => Boolean(value));
+
+  if (framePwdFieldPairs.length !== 1) {
+    if (framePwdFieldPairs.length === 0) {
+      console.log("No password field found -- skipping");
+    } else if (framePwdFieldPairs.length > 1) {
+      console.log("More than one password field found -- skipping");
+    }
+    return;
+  }
+
+  const [frame, pwdField] = framePwdFieldPairs[0];
+  console.log("pwdField", frame.url());
+  await frame.evaluate("$$__META.start(false)");
 }
 
 async function main() {
@@ -24,10 +49,33 @@ async function main() {
   });
   try {
     const page = await browser.newPage();
-    await page.addInitScript({ path: path.join(rootDir, "setup.js") });
 
-    // await page.goto("https://account.apple.com/account?appId=632");
-    // await findAndFillPasswordField(page);
+    await page.route(
+      () => true,
+      async (route, request) => {
+        if (request.resourceType() === "script") {
+          try {
+            const response = await route.fetch();
+            const body = await response.body();
+            const instBody = await instrument(body.toString(), request.url());
+            route.fulfill({ response, body: instBody });
+          } catch (e) {
+            route.abort("failed");
+            console.error(e);
+          }
+          return;
+        }
+
+        route.continue();
+      }
+    );
+    await page.exposeBinding("$$__notify", (source, record) => {
+      console.log(record);
+    });
+    await page.addInitScript({ content: (await buildSetup()).toString() });
+
+    await page.goto("https://account.apple.com/account?appId=632");
+    await detectPSM(page);
 
     await timeout(Infinity); // DEBUG: prevent exiting
   } catch (e) {
