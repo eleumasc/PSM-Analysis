@@ -13,26 +13,30 @@ class JEUFrontierBinding {
     if (this.depth === 0) {
       this.enterJEU();
     }
-    this._enter?.(...arguments);
     ++this.depth;
+    this._enter?.(...arguments);
   }
 
   leave() {
-    --this.depth;
     this._leave?.(...arguments);
+    --this.depth;
     if (this.depth === 0) {
       this.leaveJEU();
     }
   }
 
   *yield(value) {
-    this.leaveJEU();
     --this.depth;
+    if (this.depth === 0) {
+      this.leaveJEU();
+    }
     try {
       return yield value;
     } finally {
+      if (this.depth === 0) {
+        this.enterJEU();
+      }
       ++this.depth;
-      this.enterJEU();
     }
   }
 
