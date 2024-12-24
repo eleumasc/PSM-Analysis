@@ -9,7 +9,7 @@ import {
   } from "playwright";
 
 async function detectPSM(page: Page) {
-  await timeout(10000); // wait enough time for the frames to spawn
+  await timeout(15000); // wait enough time for the frames to spawn
 
   const framePwdFieldPairs = (
     await Promise.allSettled(
@@ -40,7 +40,8 @@ async function detectPSM(page: Page) {
 
   const [frame, pwdField] = framePwdFieldPairs[0];
   console.log("pwdField", frame.url());
-  await frame.evaluate("$$__META.start(false)");
+  await frame.evaluate("$$__META.startRecording()");
+  await pwdField.press("1");
 }
 
 async function main() {

@@ -13,7 +13,7 @@ function createListenerWrapper(listener) {
   return function (e) {
     const target = e.target;
     if (target instanceof HTMLInputElement && target.type === "password") {
-      analysis.log({ type: "input-password" });
+      analysis.addRecord({ type: "pwdFieldInput" });
     }
     return apply(listener, this, arguments);
   };
@@ -35,7 +35,7 @@ function isRelevantEventType(type) {
 wrapEventListeners(createListenerWrapper, isRelevantEventType);
 
 const observer = new MutationObserver((mutationList) => {
-  analysis.log({ type: "domMutation", mutationList });
+  analysis.addRecord({ type: "domMutation", mutationList });
 });
 observer.observe(document, {
   attributes: true,
@@ -47,29 +47,21 @@ observer.observe(document, {
 });
 
 const binding = new JEUFrontierBinding({
-  enterJEU() {
-    analysis.enterJEU();
-  },
+  enterJEU() {},
 
-  leaveJEU() {
-    analysis.leaveJEU();
-  },
+  leaveJEU() {},
 
   enter(_thisArg /* undefined */, args, loc) {
-    analysis.log({ type: "functionCall", args, loc });
+    analysis.addRecord({ type: "functionCall", args, loc });
   },
 });
 
 global["$$__META"] = {
   __proto__: binding,
 
-  start(loggingEnabled) {
-    analysis.start(loggingEnabled);
+  startRecording() {
+    analysis.startRecording();
   },
 };
-
-// global.addEventListener("load", () => {
-//   analysis.start(false);
-// });
 
 console.log("setup completed");

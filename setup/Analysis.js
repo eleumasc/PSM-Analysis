@@ -1,6 +1,6 @@
 "use strict";
 
-const Logger = require("./Logger");
+const Recorder = require("./Recorder");
 
 const setTimeout = global.setTimeout;
 const clearTimeout = global.clearTimeout;
@@ -8,60 +8,49 @@ const clearTimeout = global.clearTimeout;
 class Analysis {
   constructor(options) {
     this.notify = options.notify.bind(null);
-    this.logger = null;
-    this.still = false;
-    this.stillTimeoutId = undefined;
-    this.started = false;
+    this.noise = new Set();
+    this.recorder = null;
+    this.recordingTimeout = undefined;
   }
 
-  log(logRecord) {
-    this.logger?.log(logRecord);
-  }
-
-  start(loggingEnabled) {
-    this.started = true;
-    if (loggingEnabled) {
-      this.logger = new Logger();
-    }
-    this.still = false;
-    this._startStillTimeout();
-  }
-
-  enterJEU() {
-    if (!this.started) return;
-    if (!this.still) {
-      this._clearStillTimeout();
+  addRecord(record) {
+    const { noise, recorder } = this;
+    if (recorder) {
+      if (record.type === "functionCall") {
+        if (!noise.has(getFunctionCallRecordId(record))) {
+          recorder.add(record);
+        }
+      } else {
+        recorder.add(record);
+      }
     } else {
-      this.notify({ type: "still-violation" });
+      if (record.type === "functionCall") {
+        noise.add(getFunctionCallRecordId(record));
+      }
     }
   }
 
-  leaveJEU() {
-    if (!this.started) return;
-    if (!this.still) {
-      this._startStillTimeout();
-    }
-  }
-
-  _startStillTimeout() {
-    this._clearStillTimeout();
-    this.stillTimeoutId = setTimeout(() => {
-      this.notify({
-        type: "still",
-        logRecords: this.logger?.getLogRecords(),
+  startRecording() {
+    this.recordingTimeout === undefined || clearTimeout(this.recordingTimeout);
+    this.recorder || (this.recorder = new Recorder());
+    this.recordingTimeout = setTimeout(() => {
+      // this.notify({
+      //   type: "recordingResult",
+      //   records: this.recorder.getRecords(),
+      // });
+      console.log({
+        type: "recordingResult",
+        records: this.recorder.getRecords(),
       });
-      this.logger = null;
-      this.still = true;
+      this.recorder = null;
+      this.recordingTimeout = undefined;
     }, 5000);
-    this.notify(`started ${this.stillTimeoutId}`);
   }
+}
 
-  _clearStillTimeout() {
-    if (this.stillTimeoutId === undefined) return;
-    clearTimeout(this.stillTimeoutId);
-    this.notify(`cleared ${this.stillTimeoutId}`);
-    this.stillTimeoutId = undefined;
-  }
+function getFunctionCallRecordId(record) {
+  const { loc } = record;
+  return loc[0] + loc[1];
 }
 
 module.exports = Analysis;
