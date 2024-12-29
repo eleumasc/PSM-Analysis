@@ -1,67 +1,92 @@
 "use strict";
 
 const Analysis = require("./Analysis");
-const JEUFrontierBinding = require("./JEUFrontierBinding");
-const wrapEventListeners = require("./wrapEventListeners");
-
-const analysis = new Analysis({ notify: global["$$__notify"] });
+const CallFlowTracker = require("./CallFlowTracker");
+const Set = require("./safe/Set");
+const wrapListeners = require("./wrapListeners");
 
 const apply = Reflect.apply;
 const HTMLInputElement = global.HTMLInputElement;
 
-function createListenerWrapper(listener) {
-  return function (e) {
-    const target = e.target;
-    if (target instanceof HTMLInputElement && target.type === "password") {
-      analysis.addRecord({ type: "pwdFieldInput" });
+function isPasswordFieldInputEvent(e) {
+  const target = e.target;
+  if (target instanceof HTMLInputElement && target.type === "password") {
+    switch (e.type) {
+      case "change":
+      case "input":
+      case "keydown":
+      case "keypress":
+      case "keyup":
+        return true;
+      default:
+        return false;
     }
-    return apply(listener, this, arguments);
-  };
-}
-
-function isRelevantEventType(type) {
-  switch (type) {
-    case "change":
-    case "input":
-    case "keydown":
-    case "keypress":
-    case "keyup":
-      return true;
-    default:
-      return false;
+  } else {
+    return false;
   }
 }
 
-wrapEventListeners(createListenerWrapper, isRelevantEventType);
+const analysis = new Analysis({ notify: global["$$notify"] });
 
-const observer = new MutationObserver((mutationList) => {
-  analysis.addRecord({ type: "domMutation", mutationList });
-});
-observer.observe(document, {
-  attributes: true,
-  attributeOldValue: true,
-  characterData: true,
-  characterDataOldValue: true,
-  childList: true,
-  subtree: true,
-});
+const relevantFlows = new Set();
 
-const binding = new JEUFrontierBinding({
-  enterJEU() {},
+const callFlowTracker = new CallFlowTracker({
+  flowStart(flowId) {
+    if (relevantFlows.has(flowId)) {
+      analysis.startRecording();
+    }
+  },
 
-  leaveJEU() {},
+  flowEnd(_flowId) {
+    analysis.stopRecording();
+  },
 
-  enter(_thisArg /* undefined */, args, loc) {
-    analysis.addRecord({ type: "functionCall", args, loc });
+  flowContinue(flowId) {
+    if (relevantFlows.has(flowId)) {
+      analysis.startRecording();
+    }
   },
 });
 
-global["$$__META"] = {
-  __proto__: binding,
+global["$$ADVICE"] = {
+  __proto__: callFlowTracker,
 
-  startRecording() {
-    analysis.startRecording();
+  enter(sourceLoc, args) {
+    super.enter();
+    analysis.addRecord({ type: "functionCall", sourceLoc, args }); // TODO: move "recording" condition here
   },
 };
+
+wrapListeners(
+  global,
+  function buildListenerWrapper(_target, _type, listener) {
+    const setterFlowId = callFlowTracker.flowId;
+    return function (e) {
+      if (isPasswordFieldInputEvent(e)) {
+        relevantFlows.add(callFlowTracker.nextFlowId);
+        callFlowTracker.enter();
+        analysis.addRecord({ type: "pwdFieldInput" });
+      } else {
+        callFlowTracker.continue(setterFlowId);
+      }
+      try {
+        return apply(listener, this, arguments);
+      } finally {
+        callFlowTracker.leave();
+      }
+    };
+  },
+  function buildCallbackWrapper(_target, callback) {
+    const setterFlowId = callFlowTracker.flowId;
+    return function () {
+      callFlowTracker.continue(setterFlowId);
+      try {
+        return apply(callback, this, arguments);
+      } finally {
+        callFlowTracker.leave();
+      }
+    };
+  }
+);
 
 console.log("setup completed");

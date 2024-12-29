@@ -40,8 +40,7 @@ async function detectPSM(page: Page) {
 
   const [frame, pwdField] = framePwdFieldPairs[0];
   console.log("pwdField", frame.url());
-  await frame.evaluate("$$__META.startRecording()");
-  await pwdField.press("1");
+  await pwdField.fill("Hg%4cvUz2^#{<~[?!Ch@"); // strong password
 }
 
 async function main() {
@@ -70,7 +69,7 @@ async function main() {
         route.continue();
       }
     );
-    await page.exposeBinding("$$__notify", (source, record) => {
+    await page.exposeBinding("$$notify", (source, record) => {
       console.log(record);
     });
     await page.addInitScript({ content: (await buildSetup()).toString() });

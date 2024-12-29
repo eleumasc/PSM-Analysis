@@ -1,5 +1,7 @@
 import * as babel from "@babel/core";
 
+export const ADVICE_VAR = "$$ADVICE";
+
 export default async function instrument(
   code: string,
   sourceUrl: string
@@ -11,6 +13,14 @@ export default async function instrument(
     })
   )?.code!;
 
+  /**
+   * This transformation adds join points to observe the execution `enter`-ing
+   * and `leave`-ing the body of functions.
+   * Also, it adds join points to intercept the evaluation of `yield`, `yield*`,
+   * and `await` expressions and the iterator of `for await...of` statements to
+   * enable call flow tracking on ES6+ code. The corresponding advice methods
+   * should simulate the original behavior of those operations.
+   */
   function transform(): babel.PluginItem {
     const { types: t } = babel;
 
@@ -48,7 +58,7 @@ export default async function instrument(
         YieldExpression(path) {
           const { node } = path;
           const { argument, delegate } = node;
-          node.argument = metaCall(
+          node.argument = adviceCall(
             delegate ? "yieldDelegate" : "yield",
             argument ? [argument] : []
           );
@@ -58,14 +68,14 @@ export default async function instrument(
         AwaitExpression(path) {
           const { node } = path;
           const { argument } = node;
-          node.argument = metaCall("await", [argument]);
+          node.argument = adviceCall("await", [argument]);
         },
 
         ForOfStatement(path) {
           const { node } = path;
           const { await, right } = node;
           if (!await) return;
-          node.right = metaCall("forAwaitOf", [right]);
+          node.right = adviceCall("forAwaitOf", [right]);
         },
       },
     };
@@ -77,27 +87,26 @@ export default async function instrument(
     ) {
       return t.blockStatement([
         t.expressionStatement(
-          metaCall("enter", [
-            t.buildUndefinedNode(), // t.thisExpression(),
-            argsId,
+          adviceCall("enter", [
             t.arrayExpression([
               t.stringLiteral(sourceUrl),
               t.numericLiteral(functionLoc.start.index),
               t.numericLiteral(functionLoc.end.index),
             ]),
+            argsId,
           ])
         ),
         t.tryStatement(
           node,
           null,
-          t.blockStatement([t.expressionStatement(metaCall("leave", []))])
+          t.blockStatement([t.expressionStatement(adviceCall("leave", []))])
         ),
       ]);
     }
 
-    function metaCall(name: string, args: babel.types.Expression[]) {
+    function adviceCall(name: string, args: babel.types.Expression[]) {
       return t.callExpression(
-        t.memberExpression(t.identifier("$$__META"), t.identifier(name)),
+        t.memberExpression(t.identifier(ADVICE_VAR), t.identifier(name)),
         args
       );
     }
