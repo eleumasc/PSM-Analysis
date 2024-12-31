@@ -45,6 +45,11 @@ class Analysis {
       type: "recordingResult",
       records: [...this.savedRecords],
     });
+    console.log(
+      this.savedRecords.filter(
+        ({ args }) => args && [...args].includes("Hg%4cvUz2^#{<~[?!Ch@")
+      )
+    );
   }
 }
 
