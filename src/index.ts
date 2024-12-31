@@ -1,6 +1,7 @@
 import buildSetup from "./buildSetup";
 import instrument from "./instrument";
 import timeout from "./timeout";
+import useWorker from "./worker";
 import {
   chromium,
   Frame,
@@ -45,39 +46,45 @@ async function detectPSM(page: Page) {
 
 async function main() {
   const browser = await chromium.launch({
+    channel: "chromium",
     headless: false,
   });
   try {
     const page = await browser.newPage();
 
-    await page.route(
-      () => true,
-      async (route, request) => {
-        if (request.resourceType() === "script") {
-          try {
-            const response = await route.fetch();
-            const body = await response.body();
-            const instBody = await instrument(body.toString(), request.url());
-            route.fulfill({ response, body: instBody });
-          } catch (e) {
-            route.abort("failed");
-            console.error(e);
+    await useWorker(async (workerExec) => {
+      await page.route(
+        () => true,
+        async (route, request) => {
+          if (request.resourceType() === "script") {
+            try {
+              const response = await route.fetch();
+              const body = await response.body();
+              const instBody = await workerExec(instrument, [
+                body.toString(),
+                request.url(),
+              ]);
+              route.fulfill({ response, body: instBody });
+            } catch (e) {
+              route.abort("failed");
+              console.error(e);
+            }
+            return;
           }
-          return;
+
+          route.continue();
         }
+      );
+      await page.exposeBinding("$$notify", (source, record) => {
+        console.log(record);
+      });
+      await page.addInitScript({ content: (await buildSetup()).toString() });
 
-        route.continue();
-      }
-    );
-    await page.exposeBinding("$$notify", (source, record) => {
-      console.log(record);
+      await page.goto("https://account.apple.com/account?appId=632");
+      await detectPSM(page);
+
+      await timeout(Infinity); // DEBUG: prevent exiting
     });
-    await page.addInitScript({ content: (await buildSetup()).toString() });
-
-    await page.goto("https://account.apple.com/account?appId=632");
-    await detectPSM(page);
-
-    await timeout(Infinity); // DEBUG: prevent exiting
   } catch (e) {
     console.error(e);
   } finally {
