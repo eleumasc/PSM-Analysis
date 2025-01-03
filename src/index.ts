@@ -1,18 +1,18 @@
-import searchRegisterPage from "./searchRegisterPage";
-import stealth from "puppeteer-extra-plugin-stealth";
+import pluginStealth from "puppeteer-extra-plugin-stealth";
+import searchSignupPage from "./searchSignupPage";
 import useWorker from "./worker";
 import { chromium } from "playwright-extra";
 import { idcacDir } from "./idcacDir";
 
 async function main() {
-  chromium.use(stealth());
+  chromium.use(pluginStealth());
   const browser = await chromium.launchPersistentContext("", {
     headless: false,
     args: [
       `--disable-extensions-except=${idcacDir}`,
       `--load-extension=${idcacDir}`, // load extension "I Don't Care About Cookies"
     ],
-    locale: "en-GB", // ask for pages speaking English
+    locale: "en-GB", // request pages in English
   });
   try {
     const page = await browser.newPage();
@@ -24,7 +24,7 @@ async function main() {
       // await timeout(10000); // wait enough time for the frames to spawn
       // await findAndFillPasswordField(page);
 
-      console.log(await searchRegisterPage(page, "ebay.com"));
+      console.log(await searchSignupPage(page, "ebay.com"));
 
       // await timeout(Infinity); // DEBUG: prevent exiting
     });
