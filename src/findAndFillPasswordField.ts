@@ -1,6 +1,6 @@
 import { Frame, Locator, Page } from "playwright";
 
-export async function findAndFillPasswordField(page: Page) {
+export default async function findAndFillPasswordField(page: Page) {
   const framePwdFieldPairs = (
     await Promise.allSettled(
       page
