@@ -1,5 +1,5 @@
 import detectSignupPage from "./detectSignupPage";
-import getFormStructures from "./getFormStructures";
+import getFormStructures, { FormStructure } from "./getFormStructures";
 import timeout from "../util/timeout";
 import { Page } from "playwright";
 
@@ -11,15 +11,64 @@ const NAVIGATION_EXTRA_TIMEOUT_MS: number = 5000;
 
 const MAX_CANDIDATE_URLS_PER_PAGE: number = 4;
 
-interface CandidateEntry {
+type CandidateEntry = {
   url: string;
-}
+};
+
+type LogRecord = {
+  type: string;
+} & (
+  | {
+      type: "init-step";
+      step: number;
+    }
+  | {
+      type: "navigate";
+      url: string;
+      targetUrl: string;
+      formStructures: FormStructure[];
+    }
+  | {
+      type: "navigate-error";
+      reason: string;
+    }
+  | {
+      type: "crawl";
+      candidateEntries: CandidateEntry[];
+    }
+);
+
+export type SearchSignupPageResult = {
+  signupPageUrl: string | null;
+  logRecords: LogRecord[];
+};
 
 // signup page search à la Alroomi et Li
-export default async function searchSignupPage(page: Page, domain: string) {
+export default async function searchSignupPage(
+  page: Page,
+  domain: string
+): Promise<SearchSignupPageResult> {
+  const logRecords: LogRecord[] = [];
+
+  function createResult(signupPageUrl: string | null): SearchSignupPageResult {
+    return { signupPageUrl, logRecords };
+  }
+
   async function navigate(url: string) {
-    await page.goto(url);
-    await timeout(NAVIGATION_EXTRA_TIMEOUT_MS);
+    try {
+      await page.goto(url);
+      await timeout(NAVIGATION_EXTRA_TIMEOUT_MS);
+      const targetUrl = page.url();
+      const formStructures = await getFormStructures(page);
+      logRecords.push({ type: "navigate", url, targetUrl, formStructures });
+      return { targetUrl, formStructures };
+    } catch (e) {
+      logRecords.push({
+        type: "navigate-error",
+        reason: e instanceof Error ? e.stack! : String(e),
+      });
+      throw e;
+    }
   }
 
   async function collectCandidateEntries(
@@ -38,24 +87,24 @@ export default async function searchSignupPage(page: Page, domain: string) {
   async function crawl(
     candidateEntries: CandidateEntry[],
     ttl?: number
-  ): Promise<string | undefined> {
+  ): Promise<string | null> {
     ttl !== void 0 || (ttl = 1);
+    logRecords.push({ type: "crawl", candidateEntries });
     for (const { url: candidateUrl } of candidateEntries) {
       try {
-        await navigate(candidateUrl);
-        const formStructures = await getFormStructures(page);
+        const { formStructures } = await navigate(candidateUrl);
         if (detectSignupPage(formStructures)) {
           return candidateUrl;
         } /* else if (detectLoginPage(formStructures)) */ else {
           if (ttl > 0) {
-            const result = await crawl(
+            const signupPageUrl = await crawl(
               (
                 await collectCandidateEntries(SIGNUP_REGEXP)
               ).slice(0, MAX_CANDIDATE_URLS_PER_PAGE),
               ttl - 1
             );
-            if (result) {
-              return result;
+            if (signupPageUrl) {
+              return signupPageUrl;
             }
           }
         }
@@ -63,42 +112,40 @@ export default async function searchSignupPage(page: Page, domain: string) {
         /* suppress */
       }
     }
+    return null;
   }
 
   // (1) We search for a signup form on the domain’s landing page.
   // NOTE: here we also check whether the domain is accessible
   {
-    await navigate(`http://${domain}/`);
-    const landingPageUrl = page.url();
-    const formStructures = await getFormStructures(page);
+    logRecords.push({ type: "init-step", step: 1 });
+    const { targetUrl: landingPageUrl, formStructures } = await navigate(
+      `http://${domain}/`
+    );
     if (detectSignupPage(formStructures)) {
-      return {
-        step: 1,
-        signupPageUrl: landingPageUrl,
-      };
+      return createResult(landingPageUrl);
     }
   }
 
   // (2) We next crawl URL links found on the landing page that contain common
   // keywords for account signup (or login) URLs.
   {
+    logRecords.push({ type: "init-step", step: 2 });
     const candidateEntries = [
       ...(await collectCandidateEntries(SIGNUP_REGEXP)),
       ...(await collectCandidateEntries(LOGIN_REGEXP)),
     ];
-    const result = await crawl(
+    const signupPageUrl = await crawl(
       candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
     );
-    if (result) {
-      return {
-        step: 2,
-        signupPageUrl: result,
-      };
+    if (signupPageUrl) {
+      return createResult(signupPageUrl);
     }
   }
 
   // (3) Query a search engine (Bing) for the domain’s account signup pages.
   {
+    logRecords.push({ type: "init-step", step: 3 });
     await page.goto(`https://www.bing.com/search?q=${domain}+signup`);
     const candidateEntries = (
       await page
@@ -107,16 +154,13 @@ export default async function searchSignupPage(page: Page, domain: string) {
           anchors.map((a) => (a as HTMLAnchorElement).href)
         )
     ).map((url) => ({ url }));
-    const result = await crawl(
+    const signupPageUrl = await crawl(
       candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
     );
-    if (result) {
-      return {
-        step: 3,
-        signupPageUrl: result,
-      };
+    if (signupPageUrl) {
+      return createResult(signupPageUrl);
     }
   }
 
-  return null;
+  return createResult(null);
 }

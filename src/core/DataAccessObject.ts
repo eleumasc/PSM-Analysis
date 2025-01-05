@@ -3,9 +3,9 @@ import path from "path";
 import { readFileSync } from "fs";
 import { rootDir } from "../rootDir";
 
-export type Rowid = number | bigint;
+const DB_FILEPATH = path.join(rootDir, "psm-analysis.sqlite");
 
-export const DB_FILEPATH = path.join(rootDir, "psm-analysis.sqlite");
+export type Rowid = number | bigint;
 
 export default class DataAccessObject {
   constructor(readonly db: Database) {}
