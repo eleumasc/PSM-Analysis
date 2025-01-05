@@ -16,10 +16,7 @@ interface CandidateEntry {
 }
 
 // signup page search à la Alroomi et Li
-export default async function searchSignupPage(
-  page: Page,
-  domain: string
-): Promise<string | undefined> {
+export default async function searchSignupPage(page: Page, domain: string) {
   async function navigate(url: string) {
     await page.goto(url);
     await timeout(NAVIGATION_EXTRA_TIMEOUT_MS);
@@ -75,7 +72,10 @@ export default async function searchSignupPage(
     const landingPageUrl = page.url();
     const formStructures = await getFormStructures(page);
     if (detectSignupPage(formStructures)) {
-      return landingPageUrl;
+      return {
+        step: 1,
+        signupPageUrl: landingPageUrl,
+      };
     }
   }
 
@@ -90,7 +90,10 @@ export default async function searchSignupPage(
       candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
     );
     if (result) {
-      return result;
+      return {
+        step: 2,
+        signupPageUrl: result,
+      };
     }
   }
 
@@ -108,7 +111,12 @@ export default async function searchSignupPage(
       candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
     );
     if (result) {
-      return result;
+      return {
+        step: 3,
+        signupPageUrl: result,
+      };
     }
   }
+
+  return null;
 }
