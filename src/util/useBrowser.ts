@@ -1,7 +1,7 @@
 import pluginStealth from "puppeteer-extra-plugin-stealth";
 import { BrowserContext } from "playwright";
 import { chromium } from "playwright-extra";
-import { idcacDir } from "./idcacDir";
+import { idcacDir } from "../idcacDir";
 
 let pluginsRegistered = false;
 

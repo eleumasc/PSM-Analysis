@@ -1,7 +1,7 @@
 import browserify from "browserify";
 import path from "path";
 import { promisify } from "util";
-import { rootDir } from "./rootDir";
+import { rootDir } from "../rootDir";
 
 export default async function buildSetup() {
   return promisify<Buffer>((callback) =>

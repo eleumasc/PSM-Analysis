@@ -1,8 +1,8 @@
-import DataAccessObject from "./DataAccessObject";
+import DataAccessObject from "../core/DataAccessObject";
 import path from "path";
 import { readFileSync } from "fs";
 
-export default async function commandLoadDomainList(filepath: string) {
+export default async function cmdLoadDomainList(filepath: string) {
   const dao = DataAccessObject.create();
 
   filepath = path.resolve(filepath);

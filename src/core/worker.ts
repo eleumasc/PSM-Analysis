@@ -1,7 +1,7 @@
 import instrument from "./instrument";
 import Pool from "workerpool/types/Pool";
 import workerpool, { isMainThread } from "workerpool";
-import { DEV } from "./dev";
+import { DEV } from "../util/dev";
 
 export default async function useWorker<T>(
   use: (workerExec: WorkerExec) => Promise<T>

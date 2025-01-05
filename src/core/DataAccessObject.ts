@@ -1,7 +1,7 @@
 import DB, { Database } from "better-sqlite3";
 import path from "path";
 import { readFileSync } from "fs";
-import { rootDir } from "./rootDir";
+import { rootDir } from "../rootDir";
 
 export type Rowid = number | bigint;
 

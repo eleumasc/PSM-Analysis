@@ -1,5 +1,5 @@
-import commandLoadDomainList from "./commandLoadDomainList";
-import commandSignupPageSearch from "./commandSignupPageSearch";
+import cmdLoadDomainList from "./commands/cmdLoadDomainList";
+import cmdSignupPageSearch from "./commands/cmdSignupPageSearch";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -14,7 +14,7 @@ async function main() {
           type: "string",
           demandOption: true,
         }),
-      ({ filepath }) => commandLoadDomainList(filepath)
+      ({ filepath }) => cmdLoadDomainList(filepath)
     )
     .command(
       "signup-page-search <domain-list-id>",
@@ -25,8 +25,7 @@ async function main() {
           type: "number",
           demandOption: true,
         }),
-      ({ "domain-list-id": domainListId }) =>
-        commandSignupPageSearch(domainListId)
+      ({ "domain-list-id": domainListId }) => cmdSignupPageSearch(domainListId)
     )
     .demandCommand(1, "You must provide a valid command.")
     .help()

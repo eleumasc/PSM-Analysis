@@ -1,9 +1,9 @@
-import DataAccessObject from "./DataAccessObject";
-import searchSignupPage from "./searchSignupPage";
-import useBrowser from "./useBrowser";
-import { toCompletion } from "./Completion";
+import DataAccessObject from "../core/DataAccessObject";
+import searchSignupPage from "../core/searchSignupPage";
+import useBrowser from "../util/useBrowser";
+import { toCompletion } from "../core/Completion";
 
-export default async function commandSignupPageSearch(domainListId: number) {
+export default async function cmdSignupPageSearch(domainListId: number) {
   const dao = DataAccessObject.open();
 
   const processId = dao.createSignupPageSearch(domainListId);
