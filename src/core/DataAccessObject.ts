@@ -7,6 +7,11 @@ const DB_FILEPATH = path.join(rootDir, "psm-analysis.sqlite");
 
 export type Rowid = number | bigint;
 
+export type DomainEntry = {
+  id: Rowid;
+  domain: string;
+};
+
 export default class DataAccessObject {
   constructor(readonly db: Database) {}
 
@@ -48,7 +53,7 @@ export default class DataAccessObject {
     })();
   }
 
-  readDomainList(domainListId: Rowid) {
+  readDomainList(domainListId: Rowid): DomainEntry[] {
     const { db } = this;
 
     const stmtSelect = db.prepare(
@@ -60,26 +65,32 @@ export default class DataAccessObject {
     }));
   }
 
-  createSignupPageSearch(domainListId: Rowid): Rowid {
+  createAnalysis(type: string, domainListId: Rowid): Rowid {
     const { db } = this;
 
     const stmtInsert = db.prepare(
-      "INSERT INTO signup_page_searches (domain_list) VALUES (?)"
+      "INSERT INTO analyses (type, domain_list) VALUES (?, ?)"
     );
-    return stmtInsert.run(domainListId).lastInsertRowid;
+    return stmtInsert.run(type, domainListId).lastInsertRowid;
   }
 
-  createSignupPageSearchResult(
-    signupPageSearchId: Rowid,
+  createAnalysisResult(
+    analysisId: Rowid,
     domainId: Rowid,
-    detail: any
+    detail: any,
+    timeInfo?: { startTime: number; endTime: number }
   ): Rowid {
     const { db } = this;
 
     const stmtInsert = db.prepare(
-      "INSERT INTO signup_page_search_results (signup_page_search, domain, detail) VALUES (?, ?, ?)"
+      "INSERT INTO analysis_results (analysis, domain, detail, start_time, end_time) VALUES (?, ?, ?, ?, ?)"
     );
-    return stmtInsert.run(signupPageSearchId, domainId, JSON.stringify(detail))
-      .lastInsertRowid;
+    return stmtInsert.run(
+      analysisId,
+      domainId,
+      JSON.stringify(detail),
+      timeInfo?.startTime,
+      timeInfo?.endTime
+    ).lastInsertRowid;
   }
 }

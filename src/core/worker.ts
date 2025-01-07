@@ -2,11 +2,18 @@ import instrument from "./instrument";
 import Pool from "workerpool/types/Pool";
 import workerpool, { isMainThread } from "workerpool";
 import { DEV } from "../util/dev";
+import { signupPageSearchProcess } from "../commands/cmdSignupPageSearch";
 
 export default async function useWorker<T>(
+  options:
+    | {
+        maxWorkers?: number;
+      }
+    | undefined,
   use: (workerExec: WorkerExec) => Promise<T>
 ): Promise<T> {
   const pool = workerpool.pool(__filename, {
+    maxWorkers: options?.maxWorkers,
     workerThreadOpts: {
       execArgv: DEV ? ["--require", "ts-node/register"] : undefined,
     },
@@ -32,5 +39,6 @@ function createWorkerExec(pool: Pool) {
 if (!isMainThread) {
   workerpool.worker({
     instrument,
+    signupPageSearchProcess,
   });
 }

@@ -9,23 +9,26 @@ CREATE TABLE IF NOT EXISTS domains (
   rank INTEGER NOT NULL,
   domain TEXT NOT NULL,
 
-  FOREIGN KEY (domain_list) REFERENCES domain_lists (id)
+  FOREIGN KEY (domain_list) REFERENCES domain_lists (id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS signup_page_searches (
+CREATE TABLE IF NOT EXISTS analyses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type TEXT,
   domain_list INTEGER NOT NULL,
 
-  FOREIGN KEY (domain_list) REFERENCES domain_lists (id)
+  FOREIGN KEY (domain_list) REFERENCES domain_lists (id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS signup_page_search_results (
+CREATE TABLE IF NOT EXISTS analysis_results (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  signup_page_search INTEGER NOT NULL,
+  analysis INTEGER NOT NULL,
   domain INTEGER NOT NULL,
   detail TEXT NOT NULL,
+  start_time INTEGER,
+  end_time INTEGER,
 
-  UNIQUE (signup_page_search, domain),
-  FOREIGN KEY (signup_page_search) REFERENCES signup_page_searches (id),
-  FOREIGN KEY (domain) REFERENCES domains (id)
+  UNIQUE (analysis, domain),
+  FOREIGN KEY (analysis) REFERENCES analyses (id) ON DELETE CASCADE,
+  FOREIGN KEY (domain) REFERENCES domains (id) ON DELETE CASCADE
 );

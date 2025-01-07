@@ -1,3 +1,5 @@
 node_modules/
 lib/
+build/
 psm-analysis.sqlite
+psm-analysis.sqlite-journal

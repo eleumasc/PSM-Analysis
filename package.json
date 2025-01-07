@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "init": "npx playwright install --no-shell",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "ts-node src/index"
+    "dev": "ts-node src/index",
+    "build": "tsc",
+    "start": "node build/index"
   },
   "keywords": [],
   "author": "",
