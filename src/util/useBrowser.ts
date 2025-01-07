@@ -1,7 +1,6 @@
 import pluginStealth from "puppeteer-extra-plugin-stealth";
 import { BrowserContext } from "playwright";
 import { chromium } from "playwright-extra";
-import { DEV } from "./dev";
 import { idcacDir } from "../idcacDir";
 
 let pluginsRegistered = false;
@@ -15,7 +14,7 @@ export default async function useBrowser<T>(
   }
 
   const browser = await chromium.launchPersistentContext("", {
-    headless: !DEV,
+    headless: false,
     args: [
       `--disable-extensions-except=${idcacDir}`,
       `--load-extension=${idcacDir}`, // load extension "I Don't Care About Cookies"
