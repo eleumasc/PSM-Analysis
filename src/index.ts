@@ -18,20 +18,26 @@ async function main() {
     )
     .command(
       "signup-page-search <domain-list-id>",
-      "Start a signup page search process",
+      "Start a signup page search analysis",
       (yargs) =>
         yargs
           .positional("domain-list-id", {
-            describe: "ID of the domain list to search on",
+            describe: "ID of the domain list to search",
             type: "number",
             demandOption: true,
           })
           .option("max-workers", {
             type: "number",
             default: 1,
+          })
+          .option("resume", {
+            type: "number",
           }),
-      ({ "domain-list-id": domainListId, "max-workers": maxWorkers }) =>
-        cmdSignupPageSearch(domainListId, { maxWorkers })
+      ({
+        "domain-list-id": domainListId,
+        "max-workers": maxWorkers,
+        resume: resumeAnalysisId,
+      }) => cmdSignupPageSearch(domainListId, { maxWorkers, resumeAnalysisId })
     )
     .demandCommand(1, "You must provide a valid command.")
     .help()

@@ -93,4 +93,26 @@ export default class DataAccessObject {
       timeInfo?.endTime
     ).lastInsertRowid;
   }
+
+  readResidualDomainList(
+    analysisId: Rowid,
+    expectedAnalysisType: string,
+    expectedDomainListId: Rowid
+  ): DomainEntry[] {
+    const { db } = this;
+
+    return db
+      .prepare(
+        "SELECT d.id, d.domain" +
+          " FROM domains d" +
+          " JOIN analyses a ON a.domain_list = d.domain_list" +
+          " LEFT JOIN analysis_results r ON r.domain = d.id AND r.analysis = a.id" +
+          " WHERE a.id = ? AND a.type = ? AND a.domain_list = ? AND r.id IS NULL"
+      )
+      .all(analysisId, expectedAnalysisType, expectedDomainListId)
+      .map((row: any) => ({
+        id: row["id"] as Rowid,
+        domain: row["domain"] as string,
+      }));
+  }
 }

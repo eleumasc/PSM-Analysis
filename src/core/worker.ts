@@ -2,7 +2,7 @@ import instrument from "./instrument";
 import Pool from "workerpool/types/Pool";
 import workerpool, { isMainThread } from "workerpool";
 import { DEV } from "../util/dev";
-import { signupPageSearchProcess } from "../commands/cmdSignupPageSearch";
+import { runSignupPageSearch } from "../commands/cmdSignupPageSearch";
 
 export default async function useWorker<T>(
   options:
@@ -39,6 +39,6 @@ function createWorkerExec(pool: Pool) {
 if (!isMainThread) {
   workerpool.worker({
     instrument,
-    signupPageSearchProcess,
+    runSignupPageSearch,
   });
 }
