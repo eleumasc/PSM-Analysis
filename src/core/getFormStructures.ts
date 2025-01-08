@@ -12,6 +12,7 @@ export default async function getFormStructures(page: Page) {
     await Promise.allSettled(
       page
         .frames()
+        .filter((frame) => frame.url()) // see https://github.com/microsoft/playwright/issues/9675
         .map(
           (frame): Promise<FormStructure[]> =>
             frame.locator("form").evaluateAll(getFormStructuresPageFunction)
