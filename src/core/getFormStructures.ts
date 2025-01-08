@@ -53,7 +53,7 @@ const getFormStructuresPageFunction = (
     for (const inputElement of form.querySelectorAll("input")) {
       if (!isVisible(inputElement)) continue;
       const { name, type } = inputElement as HTMLInputElement;
-      if (!names[name]) {
+      if (!name || !names[name]) {
         switch (type) {
           case "text":
           case "email":
@@ -69,7 +69,9 @@ const getFormStructuresPageFunction = (
             formStructure.radioInputs += 1;
             break;
         }
-        names[name] = true;
+        if (name) {
+          names[name] = true;
+        }
       }
     }
     return formStructure;
