@@ -1,7 +1,7 @@
 import detectSignupPage from "./detectSignupPage";
 import getFormStructures, { FormStructure } from "./getFormStructures";
-import timeout from "../util/timeout";
 import { Page } from "playwright";
+import { timeout } from "../util/timeout";
 
 const SIGNUP_REGEXP: RegExp = /sign\s?up|register|create|join/i;
 

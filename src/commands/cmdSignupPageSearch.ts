@@ -3,6 +3,7 @@ import DataAccessObject, { DomainEntry, Rowid } from "../core/DataAccessObject";
 import searchSignupPage from "../core/searchSignupPage";
 import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
+import { bomb } from "../util/timeout";
 import { Maybe } from "../util/Maybe";
 import { toCompletion } from "../util/Completion";
 
@@ -59,7 +60,7 @@ export async function runSignupPageSearch(
   const completion = await toCompletion(() =>
     useBrowser(async (browser) => {
       const page = await browser.newPage();
-      return await searchSignupPage(page, domain);
+      return await bomb(() => searchSignupPage(page, domain), 5 * 60 * 1000);
     })
   );
   const endTime = currentTime();
