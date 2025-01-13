@@ -10,6 +10,15 @@ class CallFlowTracker {
     this.nextFlowId = 1;
   }
 
+  requestNextFlowId() {
+    if (this.height !== 0) {
+      throw new Error(
+        "Cannot request nextFlowID if height is greater than zero"
+      );
+    }
+    return this.nextFlowId;
+  }
+
   enter() {
     if (this.height === 0) {
       this.flowId = this.nextFlowId++;

@@ -1,3 +1,4 @@
+import assert from "assert";
 import DB, { Database } from "better-sqlite3";
 import path from "path";
 import { readFileSync } from "fs";
@@ -6,11 +7,6 @@ import { rootDir } from "../rootDir";
 const DB_FILEPATH = path.join(rootDir, "psm-analysis.sqlite");
 
 export type Rowid = number | bigint;
-
-export type DomainEntry = {
-  id: Rowid;
-  domain: string;
-};
 
 export default class DataAccessObject {
   constructor(readonly db: Database) {}
@@ -53,25 +49,45 @@ export default class DataAccessObject {
     })();
   }
 
-  readDomainList(domainListId: Rowid): DomainEntry[] {
+  getDomains(domainListId: Rowid): DomainModel[] {
     const { db } = this;
 
     const stmtSelect = db.prepare(
       "SELECT * FROM domains WHERE domain_list = ? ORDER BY rank"
     );
-    return stmtSelect.all(domainListId).map((row: any) => ({
-      id: row["id"] as Rowid,
-      domain: row["domain"] as string,
-    }));
+    return stmtSelect.all(domainListId).map(toDomainModel);
   }
 
-  createAnalysis(type: string, domainListId: Rowid): Rowid {
+  createTopAnalysis(type: string, domainListId: Rowid): Rowid {
     const { db } = this;
 
     const stmtInsert = db.prepare(
       "INSERT INTO analyses (type, domain_list) VALUES (?, ?)"
     );
     return stmtInsert.run(type, domainListId).lastInsertRowid;
+  }
+
+  createSubAnalysis(type: string, parentId: Rowid, parentType: string): Rowid {
+    const { db } = this;
+
+    const parentAnalysis = this.getAnalysis(parentId);
+    checkAnalysisType(parentAnalysis, parentType);
+
+    const stmtInsert = db.prepare(
+      "INSERT INTO analyses (type, parent) VALUES (?, ?)"
+    );
+    return stmtInsert.run(type, parentId).lastInsertRowid;
+  }
+
+  getAnalysis(id: Rowid): AnalysisModel {
+    const { db } = this;
+
+    const stmtSelect = db.prepare("SELECT * FROM analyses WHERE id = ?");
+    const row = stmtSelect.get(id);
+
+    assert(row, `Analysis not found with ID: ${id}`);
+
+    return toAnalysisModel(row);
   }
 
   createAnalysisResult(
@@ -94,25 +110,101 @@ export default class DataAccessObject {
     ).lastInsertRowid;
   }
 
-  readResidualDomainList(
-    analysisId: Rowid,
-    expectedAnalysisType: string,
-    expectedDomainListId: Rowid
-  ): DomainEntry[] {
+  getAnalysisResult(analysisId: Rowid, domainId: Rowid) {
     const { db } = this;
 
-    return db
-      .prepare(
-        "SELECT d.id, d.domain" +
-          " FROM domains d" +
-          " JOIN analyses a ON a.domain_list = d.domain_list" +
-          " LEFT JOIN analysis_results r ON r.domain = d.id AND r.analysis = a.id" +
-          " WHERE a.id = ? AND a.type = ? AND a.domain_list = ? AND r.id IS NULL"
-      )
-      .all(analysisId, expectedAnalysisType, expectedDomainListId)
-      .map((row: any) => ({
-        id: row["id"] as Rowid,
-        domain: row["domain"] as string,
-      }));
+    const stmtSelect = db.prepare(
+      "SELECT * FROM analysis_results WHERE analysis = ? AND domain = ?"
+    );
+    const row = stmtSelect.get(analysisId, domainId);
+
+    assert(
+      row,
+      `AnalysisResult not found (Analysis ID: ${analysisId}, Domain ID: ${domainId})`
+    );
+
+    return JSON.parse((row as any)["detail"]);
   }
+
+  getTodoDomains(
+    analysisId: Rowid,
+    expectedAnalysisType: string
+  ): DomainModel[] {
+    const { db } = this;
+
+    const analysisModel = this.getAnalysis(analysisId);
+    checkAnalysisType(analysisModel, expectedAnalysisType);
+
+    if (analysisModel.domainListId !== null) {
+      return db
+        .prepare(
+          [
+            "SELECT d.*",
+            "FROM domains d",
+            "JOIN analyses a ON a.domain_list = d.domain_list",
+            "LEFT JOIN analysis_results r ON r.domain = d.id AND r.analysis = a.id",
+            "WHERE a.id = ? AND r.id IS NULL",
+          ].join(" ")
+        )
+        .all(analysisId)
+        .map(toDomainModel);
+    } else {
+      assert(analysisModel.parentAnalysisId !== null);
+      return db
+        .prepare(
+          [
+            "SELECT d.*",
+            "FROM domains d",
+            "JOIN analysis_results p ON p.domain = d.id",
+            "JOIN analyses a ON a.parent = p.analysis",
+            "LEFT JOIN analysis_results r ON r.domain = d.id AND r.analysis = a.id",
+            "WHERE a.id = ? AND r.id IS NULL",
+          ].join(" ")
+        )
+        .all(analysisId)
+        .map(toDomainModel);
+    }
+  }
+}
+
+export type DomainModel = {
+  id: Rowid;
+  rank: number;
+  domain: string;
+};
+
+function toDomainModel(row: any): DomainModel {
+  const { id, rank, domain } = row;
+  return {
+    id,
+    rank,
+    domain,
+  };
+}
+
+export type AnalysisModel = {
+  id: Rowid;
+  type: string;
+  domainListId: Rowid | null;
+  parentAnalysisId: Rowid | null;
+};
+
+function toAnalysisModel(row: any): AnalysisModel {
+  const { id, type, domain_list: domainListId, parent: parentAnalysisId } = row;
+  return {
+    id,
+    type,
+    domainListId,
+    parentAnalysisId,
+  };
+}
+
+export function checkAnalysisType(
+  analysisModel: AnalysisModel,
+  expectedType: string
+): void {
+  assert(
+    analysisModel.type === expectedType,
+    `Expected ${expectedType}, but got ${analysisModel.type} (Analysis ID: ${analysisModel.id})`
+  );
 }

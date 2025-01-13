@@ -1,43 +1,53 @@
 import currentTime from "../util/currentTime";
-import DataAccessObject, { DomainEntry, Rowid } from "../core/DataAccessObject";
+import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
 import searchSignupPage from "../core/searchSignupPage";
 import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
-import { Maybe } from "../util/Maybe";
+import { DEFAULT_ANALYSIS_TIMEOUT_MS } from "../core/defaults";
 import { toCompletion } from "../util/Completion";
 
-const SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE = "signup_page_search";
+export const SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE = "signup_page_search";
 
 export default async function cmdSignupPageSearch(
-  domainListId: number,
-  options: {
+  args: (
+    | {
+        action: "create";
+        domainListId: number;
+      }
+    | {
+        action: "resume";
+        analysisId: number;
+      }
+  ) & {
     maxWorkers: number;
-    resumeAnalysisId: Maybe<Rowid>;
   }
 ) {
   const dao = DataAccessObject.open();
 
   const analysisId =
-    options.resumeAnalysisId ??
-    dao.createAnalysis(SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE, domainListId);
-  const domainList = dao.readResidualDomainList(
+    args.action === "create"
+      ? dao.createTopAnalysis(
+          SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE,
+          args.domainListId
+        )
+      : args.analysisId;
+  const todoDomains = dao.getTodoDomains(
     analysisId,
-    SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE,
-    domainListId
+    SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE
   );
 
   console.log(`Analysis ID: ${analysisId}`);
-  console.log(`${domainList.length} residual domains`);
+  console.log(`${todoDomains.length} domains remaining`);
 
   await useWorker(
     {
-      maxWorkers: options.maxWorkers,
+      maxWorkers: args.maxWorkers,
     },
     async (workerExec) => {
       await Promise.all(
-        domainList.map((entry, index) =>
-          workerExec(runSignupPageSearch, [analysisId, entry, index])
+        todoDomains.map((domainModel) =>
+          workerExec(runSignupPageSearch, [analysisId, domainModel])
         )
       );
     }
@@ -48,24 +58,26 @@ export default async function cmdSignupPageSearch(
 
 export async function runSignupPageSearch(
   analysisId: Rowid,
-  domainEntry: DomainEntry,
-  domainIndex: number
+  domainModel: DomainModel
 ) {
   const dao = DataAccessObject.open();
 
-  const { id: domainId, domain } = domainEntry;
+  const { id: domainId, rank: domainRank, domain } = domainModel;
 
-  console.log(`begin analysis ${domain} [${domainIndex}]`);
+  console.log(`begin analysis ${domain} [${domainRank}]`);
   const startTime = currentTime();
-  const completion = await toCompletion(() =>
+  const result = await toCompletion(() =>
     useBrowser(async (browser) => {
       const page = await browser.newPage();
-      return await bomb(() => searchSignupPage(page, domain), 5 * 60 * 1000);
+      return await bomb(
+        () => searchSignupPage(page, domain),
+        DEFAULT_ANALYSIS_TIMEOUT_MS
+      );
     })
   );
   const endTime = currentTime();
-  console.log(`end analysis ${domain} [${domainIndex}]`);
+  console.log(`end analysis ${domain} [${domainRank}]`);
 
   const timeInfo = { startTime, endTime };
-  dao.createAnalysisResult(analysisId, domainId, completion, timeInfo);
+  dao.createAnalysisResult(analysisId, domainId, result, timeInfo);
 }

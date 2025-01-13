@@ -26,24 +26,24 @@ function isPasswordFieldInputEvent(e) {
   }
 }
 
-const analysis = new Analysis({ notify: global["$$notify"] });
+const analysis = new Analysis();
 
 const relevantFlows = new Set();
 
 const callFlowTracker = new CallFlowTracker({
   flowStart(flowId) {
     if (relevantFlows.has(flowId)) {
-      analysis.startRecording();
+      analysis.setFunctionCallCapturing(true);
     }
   },
 
   flowEnd(_flowId) {
-    analysis.stopRecording();
+    analysis.setFunctionCallCapturing(false);
   },
 
   flowContinue(flowId) {
     if (relevantFlows.has(flowId)) {
-      analysis.startRecording();
+      analysis.setFunctionCallCapturing(true);
     }
   },
 });
@@ -53,7 +53,15 @@ global["$$ADVICE"] = {
 
   enter(sourceLoc, args) {
     super.enter();
-    analysis.addRecord({ type: "functionCall", sourceLoc, args }); // TODO: move "recording" condition here
+    analysis.pushFunctionCall(sourceLoc, args);
+  },
+
+  capture() {
+    analysis.capture();
+  },
+
+  captureEnd() {
+    return analysis.captureEnd();
   },
 };
 
@@ -63,9 +71,8 @@ wrapListeners(
     const setterFlowId = callFlowTracker.flowId;
     return function (e) {
       if (isPasswordFieldInputEvent(e)) {
-        relevantFlows.add(callFlowTracker.nextFlowId);
+        relevantFlows.add(callFlowTracker.requestNextFlowId());
         callFlowTracker.enter();
-        analysis.addRecord({ type: "pwdFieldInput" });
       } else {
         callFlowTracker.continue(setterFlowId);
       }

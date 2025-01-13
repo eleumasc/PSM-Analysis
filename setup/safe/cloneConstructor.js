@@ -25,9 +25,11 @@ function cloneConstructor(Constructor) {
       return apply(Constructor, this, arguments);
     }
   };
+  clone["prototype"] = dstProto;
 
   // clone constructor properties
   for (const key of ownKeys(Constructor)) {
+    if (key === "prototype") continue;
     defineProperty(clone, key, getOwnPropertyDescriptor(Constructor, key));
   }
 

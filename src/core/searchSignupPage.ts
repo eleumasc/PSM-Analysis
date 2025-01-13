@@ -1,4 +1,4 @@
-import detectSignupPage from "./detectSignupPage";
+import findSignupForm from "./findSignupForm";
 import getFormStructures, { FormStructure } from "./getFormStructures";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
@@ -7,7 +7,7 @@ const SIGNUP_REGEXP: RegExp = /sign\s?up|register|create|join/i;
 
 const LOGIN_REGEXP: RegExp = /log\s?[io]n|sign\s?[io]n/i;
 
-const NAVIGATION_EXTRA_TIMEOUT_MS: number = 5000;
+const NAVIGATE_EXTRA_TIMEOUT_MS: number = 5000;
 
 const MAX_CANDIDATE_URLS_PER_PAGE: number = 4;
 
@@ -57,7 +57,7 @@ export default async function searchSignupPage(
   async function navigate(url: string) {
     try {
       await page.goto(url);
-      await timeout(NAVIGATION_EXTRA_TIMEOUT_MS);
+      await timeout(NAVIGATE_EXTRA_TIMEOUT_MS);
       const targetUrl = page.url();
       const formStructures = await getFormStructures(page);
       logRecords.push({ type: "navigate", url, targetUrl, formStructures });
@@ -93,7 +93,7 @@ export default async function searchSignupPage(
     for (const { url: candidateUrl } of candidateEntries) {
       try {
         const { formStructures } = await navigate(candidateUrl);
-        if (detectSignupPage(formStructures)) {
+        if (findSignupForm(formStructures)) {
           return candidateUrl;
         } /* else if (detectLoginPage(formStructures)) */ else {
           if (ttl > 0) {
@@ -122,7 +122,7 @@ export default async function searchSignupPage(
     const { targetUrl: landingPageUrl, formStructures } = await navigate(
       `http://${domain}/`
     );
-    if (detectSignupPage(formStructures)) {
+    if (findSignupForm(formStructures)) {
       return createResult(landingPageUrl);
     }
   }

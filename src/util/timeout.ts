@@ -1,9 +1,9 @@
 export function timeout(timeoutMs: number): Promise<void> {
-  if (timeoutMs === Infinity) {
-    return new Promise(() => {});
-  }
-
   return new Promise((resolve) => setTimeout(resolve, timeoutMs));
+}
+
+export function forever(): Promise<void> {
+  return new Promise(() => {});
 }
 
 export function bomb<T>(

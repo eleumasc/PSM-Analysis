@@ -14,10 +14,13 @@ CREATE TABLE IF NOT EXISTS domains (
 
 CREATE TABLE IF NOT EXISTS analyses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  type TEXT,
-  domain_list INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  domain_list INTEGER DEFAULT NULL,
+  parent INTEGER DEFAULT NULL,
 
-  FOREIGN KEY (domain_list) REFERENCES domain_lists (id) ON DELETE CASCADE
+  FOREIGN KEY (domain_list) REFERENCES domain_lists (id) ON DELETE CASCADE,
+  FOREIGN KEY (parent) REFERENCES analyses (id) ON DELETE CASCADE,
+  CHECK ((domain_list NOTNULL AND parent ISNULL) OR (domain_list ISNULL AND parent NOTNULL))
 );
 
 CREATE TABLE IF NOT EXISTS analysis_results (

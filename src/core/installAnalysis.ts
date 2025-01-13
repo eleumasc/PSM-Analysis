@@ -36,9 +36,5 @@ export default async function installAnalysis(
     }
   );
 
-  await page.exposeBinding("$$notify", (source, record) => {
-    console.log(record);
-  });
-
   await page.addInitScript({ content: (await buildSetup()).toString() });
 }

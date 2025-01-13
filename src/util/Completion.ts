@@ -9,7 +9,7 @@ export interface Success<T> extends BaseCompletion {
 
 export interface Failure extends BaseCompletion {
   status: "failure";
-  error: { type: string; message: string };
+  error?: { type: string; message: string };
 }
 
 export type Completion<T> = Success<T> | Failure;
@@ -18,7 +18,7 @@ export const Success = <T>(value: T): Success<T> => {
   return { status: "success", value };
 };
 
-export const Failure = (error: Failure["error"]): Failure => {
+export const Failure = (error?: Failure["error"]): Failure => {
   return { status: "failure", error };
 };
 
