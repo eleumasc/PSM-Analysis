@@ -29,6 +29,7 @@ export default async function cmdPasswordFieldInput(
       }
   ) & {
     maxWorkers: number;
+    maxInstrumentWorkers: number;
   }
 ) {
   const dao = DataAccessObject.open();
@@ -49,9 +50,22 @@ export default async function cmdPasswordFieldInput(
   console.log(`Analysis ID: ${analysisId}`);
   console.log(`${todoDomains.length} domains remaining`);
 
-  for (const domainModel of todoDomains) {
-    await runPasswordFieldInput(analysisId, domainModel, args.maxWorkers);
-  }
+  await useWorker(
+    {
+      maxWorkers: args.maxWorkers,
+    },
+    async (workerExec) => {
+      await Promise.all(
+        todoDomains.map((domainModel) =>
+          workerExec(runPasswordFieldInput, [
+            analysisId,
+            domainModel,
+            args.maxInstrumentWorkers,
+          ])
+        )
+      );
+    }
+  );
 
   process.exit(0);
 }
@@ -59,7 +73,7 @@ export default async function cmdPasswordFieldInput(
 export async function runPasswordFieldInput(
   analysisId: Rowid,
   domainModel: DomainModel,
-  maxWorkers: number
+  maxInstrumentWorkers: number
 ) {
   const dao = DataAccessObject.open();
 
@@ -84,7 +98,7 @@ export async function runPasswordFieldInput(
   console.log(`begin analysis ${domain} [${domainRank}]`);
   const startTime = currentTime();
   const completion = await toCompletion(() =>
-    useWorker({ maxWorkers }, (workerExec) =>
+    useWorker({ maxWorkers: maxInstrumentWorkers }, (workerExec) =>
       useBrowser(async (browser) => {
         const page = await browser.newPage();
         await installAnalysis(page, { workerExec });

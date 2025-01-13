@@ -64,6 +64,10 @@ async function main() {
           .option("max-workers", {
             type: "number",
             default: 1,
+          })
+          .option("max-instrument-workers", {
+            type: "number",
+            default: 1,
           }),
       (args) => cmdPasswordFieldInput({ action: "create", ...args })
     )
@@ -78,6 +82,10 @@ async function main() {
             demandOption: true,
           })
           .option("max-workers", {
+            type: "number",
+            default: 1,
+          })
+          .option("max-instrument-workers", {
             type: "number",
             default: 1,
           }),
