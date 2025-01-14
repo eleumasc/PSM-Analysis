@@ -28,6 +28,21 @@ function isPasswordFieldInputEvent(e) {
 
 const analysis = new Analysis();
 
+document.addEventListener("DOMContentLoaded", () => {
+  const mutObs = new MutationObserver((mutationList) => {
+    analysis.addMutationList(mutationList);
+  });
+
+  mutObs.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeOldValue: true,
+    characterData: true,
+    characterDataOldValue: true,
+  });
+});
+
 const relevantFlows = new Set();
 
 const callFlowTracker = new CallFlowTracker({
@@ -56,13 +71,13 @@ global["$$ADVICE"] = {
   enter(sourceLoc, args) {
     super.enter();
     const callId = nextCallId++;
-    analysis.pushFunctionCall(callId, sourceLoc, args);
+    analysis.addFunctionEnter(callId, sourceLoc, args);
     return callId;
   },
 
   leave(callId, ret, exc) {
     super.leave();
-    analysis.pushFunctionReturn(callId, ret, exc);
+    analysis.addFunctionLeave(callId, ret, exc);
   },
 
   capture() {

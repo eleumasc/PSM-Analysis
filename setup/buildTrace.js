@@ -3,6 +3,7 @@
 function buildTrace(traceAcc) {
   return {
     functionCalls: [...traceAcc.functionCalls.values()],
+    mutations: traceAcc.mutations,
   };
 }
 
