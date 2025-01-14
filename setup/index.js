@@ -48,12 +48,21 @@ const callFlowTracker = new CallFlowTracker({
   },
 });
 
+let nextCallId = 1;
+
 global["$$ADVICE"] = {
-  __proto__: callFlowTracker,
+  __proto__: callFlowTracker.createAdvice(),
 
   enter(sourceLoc, args) {
     super.enter();
-    analysis.pushFunctionCall(sourceLoc, args);
+    const callId = nextCallId++;
+    analysis.pushFunctionCall(callId, sourceLoc, args);
+    return callId;
+  },
+
+  leave(callId, ret, exc) {
+    super.leave();
+    analysis.pushFunctionReturn(callId, ret, exc);
   },
 
   capture() {

@@ -43,48 +43,60 @@ class CallFlowTracker {
     }
   }
 
-  *yield(value) {
-    this.leave();
-    try {
-      return yield value;
-    } finally {
-      this.enter();
-    }
-  }
+  createAdvice() {
+    return {
+      enter: function () {
+        this.enter();
+      }.bind(this),
 
-  *yieldDelegate(iterator) {
-    for (;;) {
-      const it = iterator.next();
-      if (it.done) {
-        return it.value;
-      }
-      yield* this.yield(it.value);
-    }
-  }
+      leave: function () {
+        this.leave();
+      }.bind(this),
 
-  async await(value) {
-    this.flowEnd(this.flowId);
-    const suspendedHeight = this.height;
-    const suspendedFlowId = this.flowId;
-    this.height = 0;
-    this.flowId = undefined;
-    try {
-      return await value;
-    } finally {
-      this.height = suspendedHeight;
-      this.flowId = suspendedFlowId;
-      this.flowContinue(this.flowId);
-    }
-  }
+      yield: function* (value) {
+        this.leave();
+        try {
+          return yield value;
+        } finally {
+          this.enter();
+        }
+      }.bind(this),
 
-  async *forAwaitOf(asyncIterator) {
-    for (;;) {
-      const it = await this.await(asyncIterator.next());
-      if (it.done) {
-        return it.value;
-      }
-      yield* this.yield(it.value);
-    }
+      yieldDelegate: function* (iterator) {
+        for (;;) {
+          const it = iterator.next();
+          if (it.done) {
+            return it.value;
+          }
+          yield* this.yield(it.value);
+        }
+      }.bind(this),
+
+      await: async function (value) {
+        this.flowEnd(this.flowId);
+        const suspendedHeight = this.height;
+        const suspendedFlowId = this.flowId;
+        this.height = 0;
+        this.flowId = undefined;
+        try {
+          return await value;
+        } finally {
+          this.height = suspendedHeight;
+          this.flowId = suspendedFlowId;
+          this.flowContinue(this.flowId);
+        }
+      }.bind(this),
+
+      forAwaitOf: async function* (asyncIterator) {
+        for (;;) {
+          const it = await this.await(asyncIterator.next());
+          if (it.done) {
+            return it.value;
+          }
+          yield* this.yield(it.value);
+        }
+      }.bind(this),
+    };
   }
 }
 

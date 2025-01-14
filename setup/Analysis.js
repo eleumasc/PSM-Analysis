@@ -1,8 +1,10 @@
 "use strict";
 
 const buildTrace = require("./buildTrace");
-
 const Array = require("./safe/Array");
+
+const Map = require("./safe/Map");
+const toSerializableValue = require("./util/toSerializableValue");
 
 class Analysis {
   constructor() {
@@ -12,7 +14,7 @@ class Analysis {
 
   capture() {
     this.traceAcc = {
-      functionCalls: new Array(),
+      functionCalls: new Map(),
     };
   }
 
@@ -20,7 +22,6 @@ class Analysis {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
     this.traceAcc = null;
-
     return buildTrace(traceAcc);
   }
 
@@ -28,11 +29,28 @@ class Analysis {
     this.functionCallCapturing = enabled;
   }
 
-  pushFunctionCall(sourceLoc, args) {
+  pushFunctionCall(callId, sourceLoc, args) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
     if (this.functionCallCapturing) {
-      traceAcc.functionCalls.push({ sourceLoc, args });
+      traceAcc.functionCalls.set(callId, {
+        sourceLoc,
+        args: Array.from(args).map((arg) => toSerializableValue(arg, 1)),
+      });
+    }
+  }
+
+  pushFunctionReturn(callId, ret, exc) {
+    const traceAcc = this.traceAcc;
+    if (!traceAcc) return;
+    if (this.functionCallCapturing) {
+      const functionCall = traceAcc.functionCalls.get(callId);
+      if (!functionCall) return;
+      if (exc) {
+        functionCall.exc = { e: toSerializableValue(exc.e, 1) };
+      } else {
+        functionCall.ret = { v: toSerializableValue(ret, 1) };
+      }
     }
   }
 }

@@ -1,4 +1,6 @@
 import * as babel from "@babel/core";
+import assert from "assert";
+import { uniqueIdentifier } from "../util/randomIdentifier";
 
 export const ADVICE_VAR = "$$ADVICE";
 
@@ -10,6 +12,7 @@ export default async function instrument(
     await babel.transformAsync(code, {
       plugins: [transform],
       sourceType: "unambiguous",
+      minified: true,
     })
   )?.code!;
 
@@ -24,35 +27,91 @@ export default async function instrument(
   function transform(): babel.PluginItem {
     const { types: t } = babel;
 
+    const ARG = t.identifier(uniqueIdentifier(code));
+    const CID = t.identifier(uniqueIdentifier(code));
+    const RET = t.identifier(uniqueIdentifier(code));
+    const EXC = t.identifier(uniqueIdentifier(code));
+    const CATCHARG = t.identifier("e");
+
     return {
       visitor: {
         Function(path) {
           const { node } = path;
-          const { loc } = node;
+
+          const { loc: functionLoc } = node;
+          assert(functionLoc);
+          const sourceLocExpression = t.arrayExpression([
+            t.stringLiteral(sourceUrl),
+            t.numericLiteral(functionLoc.start.index),
+            t.numericLiteral(functionLoc.end.index),
+          ]);
+
           if (t.isArrowFunctionExpression(node)) {
             const { body, params } = node;
-            const argsId = path.scope.generateUidIdentifier("args");
-            node.params = [t.restElement(argsId)];
+            node.params = [t.restElement(ARG)];
             node.body = t.blockStatement([
               t.variableDeclaration("var", [
-                t.variableDeclarator(t.arrayPattern(params), argsId),
+                t.variableDeclarator(t.arrayPattern(params), ARG),
               ]),
               ...instrumentFunctionBody(
                 t.isExpression(body)
                   ? t.blockStatement([t.returnStatement(body)])
                   : body,
-                argsId,
-                loc!
+                ARG
               ).body,
             ]);
           } else {
             const { body } = node;
-            node.body = instrumentFunctionBody(
-              body,
-              t.identifier("arguments"),
-              loc!
-            );
+            node.body = instrumentFunctionBody(body, t.identifier("arguments"));
           }
+
+          function instrumentFunctionBody(
+            node: babel.types.BlockStatement,
+            argIdentifier: babel.types.Identifier
+          ): babel.types.BlockStatement {
+            return t.blockStatement([
+              t.variableDeclaration("var", [
+                t.variableDeclarator(CID),
+                t.variableDeclarator(RET),
+                t.variableDeclarator(EXC),
+              ]),
+              t.expressionStatement(
+                t.assignmentExpression(
+                  "=",
+                  CID,
+                  adviceCall("enter", [sourceLocExpression, argIdentifier])
+                )
+              ),
+              t.tryStatement(
+                node,
+                t.catchClause(
+                  CATCHARG,
+                  t.blockStatement([
+                    t.expressionStatement(
+                      t.assignmentExpression(
+                        "=",
+                        EXC,
+                        t.objectExpression([
+                          t.objectProperty(CATCHARG, CATCHARG),
+                        ])
+                      )
+                    ),
+                    t.throwStatement(CATCHARG),
+                  ])
+                ),
+                t.blockStatement([
+                  t.expressionStatement(adviceCall("leave", [CID, RET, EXC])),
+                ])
+              ),
+            ]);
+          }
+        },
+
+        ReturnStatement(path) {
+          const { node } = path;
+          const { argument } = node;
+          if (!argument) return;
+          node.argument = t.assignmentExpression("=", RET, argument);
         },
 
         YieldExpression(path) {
@@ -73,36 +132,12 @@ export default async function instrument(
 
         ForOfStatement(path) {
           const { node } = path;
-          const { await, right } = node;
-          if (!await) return;
+          const { await: isAwait, right } = node;
+          if (!isAwait) return;
           node.right = adviceCall("forAwaitOf", [right]);
         },
       },
     };
-
-    function instrumentFunctionBody(
-      node: babel.types.BlockStatement,
-      argsId: babel.types.Identifier,
-      functionLoc: babel.types.SourceLocation
-    ) {
-      return t.blockStatement([
-        t.expressionStatement(
-          adviceCall("enter", [
-            t.arrayExpression([
-              t.stringLiteral(sourceUrl),
-              t.numericLiteral(functionLoc.start.index),
-              t.numericLiteral(functionLoc.end.index),
-            ]),
-            argsId,
-          ])
-        ),
-        t.tryStatement(
-          node,
-          null,
-          t.blockStatement([t.expressionStatement(adviceCall("leave", []))])
-        ),
-      ]);
-    }
 
     function adviceCall(name: string, args: babel.types.Expression[]) {
       return t.callExpression(
