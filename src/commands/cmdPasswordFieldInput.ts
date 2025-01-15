@@ -2,6 +2,7 @@ import currentTime from "../util/currentTime";
 import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
 import inputPasswordField from "../core/inputPasswordField";
 import installAnalysis from "../core/installAnalysis";
+import processDomainTaskQueue from "../core/processDomainTaskQueue";
 import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
@@ -28,8 +29,9 @@ export default async function cmdPasswordFieldInput(
         analysisId: number;
       }
   ) & {
-    maxWorkers: number;
+    maxTasks: number;
     maxInstrumentWorkers: number;
+    maxInstrumentWorkerMemory: number | undefined;
   }
 ) {
   const dao = DataAccessObject.open();
@@ -50,21 +52,16 @@ export default async function cmdPasswordFieldInput(
   console.log(`Analysis ID: ${analysisId}`);
   console.log(`${todoDomains.length} domains remaining`);
 
-  await useWorker(
-    {
-      maxWorkers: args.maxWorkers,
-    },
-    async (workerExec) => {
-      await Promise.all(
-        todoDomains.map((domainModel) =>
-          workerExec(runPasswordFieldInput, [
-            analysisId,
-            domainModel,
-            args.maxInstrumentWorkers,
-          ])
-        )
-      );
-    }
+  await processDomainTaskQueue(
+    todoDomains,
+    { maxTasks: args.maxTasks },
+    (domainModel) => () =>
+      runPasswordFieldInput(
+        analysisId,
+        domainModel,
+        args.maxInstrumentWorkers,
+        args.maxInstrumentWorkerMemory
+      )
   );
 
   process.exit(0);
@@ -73,7 +70,8 @@ export default async function cmdPasswordFieldInput(
 export async function runPasswordFieldInput(
   analysisId: Rowid,
   domainModel: DomainModel,
-  maxInstrumentWorkers: number
+  maxWorkers: number,
+  maxWorkerMemory: number | undefined
 ) {
   const dao = DataAccessObject.open();
 
@@ -98,15 +96,20 @@ export async function runPasswordFieldInput(
   console.log(`begin analysis ${domain} [${domainRank}]`);
   const startTime = currentTime();
   const completion = await toCompletion(() =>
-    useWorker({ maxWorkers: maxInstrumentWorkers }, (workerExec) =>
-      useBrowser(async (browser) => {
-        const page = await browser.newPage();
-        await installAnalysis(page, { workerExec });
-        return await bomb(
-          () => inputPasswordField(page, domain, signupPageUrl),
-          DEFAULT_ANALYSIS_TIMEOUT_MS
-        );
-      })
+    useWorker(
+      {
+        maxWorkers,
+        maxWorkerMemory,
+      },
+      (workerExec) =>
+        useBrowser(async (browser) => {
+          const page = await browser.newPage();
+          await installAnalysis(page, { workerExec });
+          return await bomb(
+            () => inputPasswordField(page, domain, signupPageUrl),
+            DEFAULT_ANALYSIS_TIMEOUT_MS
+          );
+        })
     )
   );
   const endTime = currentTime();

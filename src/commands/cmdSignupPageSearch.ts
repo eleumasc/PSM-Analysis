@@ -1,8 +1,8 @@
 import currentTime from "../util/currentTime";
 import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
+import processDomainTaskQueue from "../core/processDomainTaskQueue";
 import searchSignupPage from "../core/searchSignupPage";
 import useBrowser from "../util/useBrowser";
-import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
 import { DEFAULT_ANALYSIS_TIMEOUT_MS } from "../core/defaults";
 import { toCompletion } from "../util/Completion";
@@ -20,7 +20,7 @@ export default async function cmdSignupPageSearch(
         analysisId: number;
       }
   ) & {
-    maxWorkers: number;
+    maxTasks: number;
   }
 ) {
   const dao = DataAccessObject.open();
@@ -40,17 +40,10 @@ export default async function cmdSignupPageSearch(
   console.log(`Analysis ID: ${analysisId}`);
   console.log(`${todoDomains.length} domains remaining`);
 
-  await useWorker(
-    {
-      maxWorkers: args.maxWorkers,
-    },
-    async (workerExec) => {
-      await Promise.all(
-        todoDomains.map((domainModel) =>
-          workerExec(runSignupPageSearch, [analysisId, domainModel])
-        )
-      );
-    }
+  await processDomainTaskQueue(
+    todoDomains,
+    { maxTasks: args.maxTasks },
+    (domainModel) => () => runSignupPageSearch(analysisId, domainModel)
   );
 
   process.exit(0);

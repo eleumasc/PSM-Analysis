@@ -9,6 +9,7 @@ export default async function useWorker<T>(
   options:
     | {
         maxWorkers?: number;
+        maxWorkerMemory?: number;
       }
     | undefined,
   use: (workerExec: WorkerExec) => Promise<T>
@@ -17,6 +18,9 @@ export default async function useWorker<T>(
     maxWorkers: options?.maxWorkers,
     workerThreadOpts: {
       execArgv: DEV ? ["--require", "ts-node/register"] : undefined,
+      resourceLimits: {
+        maxOldGenerationSizeMb: options?.maxWorkerMemory,
+      },
     },
   });
   try {

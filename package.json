@@ -15,6 +15,7 @@
   "description": "",
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.8",
+    "@types/async": "^3.2.24",
     "@types/babel__core": "^7.20.5",
     "@types/better-sqlite3": "^7.6.12",
     "@types/browserify": "^12.0.40",
@@ -25,6 +26,7 @@
   },
   "dependencies": {
     "@babel/core": "^7.26.0",
+    "async": "^3.2.6",
     "better-sqlite3": "^11.7.0",
     "browserify": "^17.0.1",
     "playwright": "^1.49.0",

@@ -28,7 +28,7 @@ async function main() {
             type: "number",
             demandOption: true,
           })
-          .option("max-workers", {
+          .option("max-tasks", {
             type: "number",
             default: 1,
           }),
@@ -44,7 +44,7 @@ async function main() {
             type: "number",
             demandOption: true,
           })
-          .option("max-workers", {
+          .option("max-tasks", {
             type: "number",
             default: 1,
           }),
@@ -61,13 +61,16 @@ async function main() {
             type: "number",
             demandOption: true,
           })
-          .option("max-workers", {
+          .option("max-tasks", {
             type: "number",
             default: 1,
           })
           .option("max-instrument-workers", {
             type: "number",
             default: 1,
+          })
+          .option("max-instrument-worker-memory", {
+            type: "number",
           }),
       (args) => cmdPasswordFieldInput({ action: "create", ...args })
     )
@@ -81,13 +84,16 @@ async function main() {
             type: "number",
             demandOption: true,
           })
-          .option("max-workers", {
+          .option("max-tasks", {
             type: "number",
             default: 1,
           })
           .option("max-instrument-workers", {
             type: "number",
             default: 1,
+          })
+          .option("max-instrument-worker-memory", {
+            type: "number",
           }),
       (args) => cmdPasswordFieldInput({ action: "resume", ...args })
     )
