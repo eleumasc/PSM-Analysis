@@ -11,15 +11,15 @@ export type Rowid = number | bigint;
 export default class DataAccessObject {
   constructor(readonly db: Database) {}
 
-  static create(): DataAccessObject {
+  static create(dbFilepath?: string): DataAccessObject {
     const schema = readFileSync(path.join(rootDir, "schema.sql")).toString();
-    const db = new DB(DB_FILEPATH);
+    const db = new DB(dbFilepath ?? DB_FILEPATH);
     db.exec(schema);
     return new DataAccessObject(db);
   }
 
-  static open(): DataAccessObject {
-    const db = new DB(DB_FILEPATH, { fileMustExist: true });
+  static open(dbFilepath?: string): DataAccessObject {
+    const db = new DB(dbFilepath ?? DB_FILEPATH, { fileMustExist: true });
     return new DataAccessObject(db);
   }
 
@@ -164,6 +164,22 @@ export default class DataAccessObject {
         .all(analysisId)
         .map(toDomainModel);
     }
+  }
+
+  getDoneDomains(analysisId: Rowid): DomainModel[] {
+    const { db } = this;
+
+    return db
+      .prepare(
+        [
+          "SELECT d.*",
+          "FROM domains d",
+          "JOIN analysis_results r ON r.domain = d.id",
+          "WHERE r.analysis = ?",
+        ].join(" ")
+      )
+      .all(analysisId)
+      .map(toDomainModel);
   }
 }
 

@@ -1,4 +1,5 @@
 import cmdLoadDomainList from "./commands/cmdLoadDomainList";
+import cmdMeasure from "./commands/cmdMeasure";
 import cmdPasswordFieldInput from "./commands/cmdPasswordFieldInput";
 import cmdSignupPageSearch from "./commands/cmdSignupPageSearch";
 import yargs from "yargs";
@@ -96,6 +97,23 @@ async function main() {
             type: "number",
           }),
       (args) => cmdPasswordFieldInput({ action: "resume", ...args })
+    )
+
+    .command(
+      "measure <pfi-analysis-id>",
+      "Start measurement",
+      (yargs) =>
+        yargs
+          .positional("pfi-analysis-id", {
+            type: "number",
+            describe:
+              "ID of the password input field analysis to start measurement from",
+            demandOption: true,
+          })
+          .option("db-filepath", {
+            type: "string",
+          }),
+      (args) => cmdMeasure(args)
     )
 
     .demandCommand(1, "You must provide a valid command.")
