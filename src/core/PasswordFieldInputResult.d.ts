@@ -1,6 +1,14 @@
 export type PasswordFieldInputResult = {
+  traceWeakFill: AnalysisTrace;
+  traceWeakBlur: AnalysisTrace;
+  traceStrongFill: AnalysisTrace;
+  traceStrongBlur: AnalysisTrace;
+};
+
+export type AnalysisTrace = {
   functionCalls: FunctionCall[];
   mutations: Mutation[];
+  xhrRequests: XHRRequest[];
 };
 
 export type FunctionCall = {
@@ -32,6 +40,14 @@ export type Mutation =
       addedTexts: string[];
       removedTexts: string[];
     };
+
+export type XHRRequest = {
+  method: string;
+  url: string;
+  body: string;
+  status: number;
+  responseText: string;
+};
 
 export type SourceLoc = [string, number, number];
 

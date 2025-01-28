@@ -9,7 +9,7 @@ const HTMLElement = global.HTMLElement;
 
 class Analysis {
   constructor() {
-    this.functionCallCapturing = false;
+    this.capturing = false;
     this.traceAcc = null;
   }
 
@@ -17,6 +17,7 @@ class Analysis {
     this.traceAcc = {
       functionCalls: new Map(),
       mutations: new Array(),
+      xhrRequests: new Array(),
     };
   }
 
@@ -27,14 +28,14 @@ class Analysis {
     return buildTrace(traceAcc);
   }
 
-  setFunctionCallCapturing(enabled) {
-    this.functionCallCapturing = enabled;
+  setCapturing(enabled) {
+    this.capturing = enabled;
   }
 
   addFunctionEnter(callId, sourceLoc, args) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    if (!this.functionCallCapturing) return;
+    if (!this.capturing) return;
     traceAcc.functionCalls.set(callId, {
       sourceLoc,
       args: Array.from(args).map((arg) => toSerializableValue(arg, 1)),
@@ -44,7 +45,7 @@ class Analysis {
   addFunctionLeave(callId, ret, exc) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    if (!this.functionCallCapturing) return;
+    if (!this.capturing) return;
     const functionCall = traceAcc.functionCalls.get(callId);
     if (!functionCall) return;
     if (exc) {
@@ -54,25 +55,25 @@ class Analysis {
     }
   }
 
-  addMutationList(mutationRecords) {
+  addMutation(mutationRecord) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    const mutations = Array.from(mutationRecords).map((record) => {
-      const { type, target: nativeTarget } = record;
+    if (!this.capturing) return;
+    const mutation = (() => {
+      const { type, target: nativeTarget } = mutationRecord;
       const target = toSerializableValue(nativeTarget, 0);
       switch (type) {
         case "attributes": {
-          const { attributeName, oldValue } = record;
+          const { attributeName, oldValue } = mutationRecord;
           return {
             type,
             target,
             attributeName,
-            value: nativeTarget.attributes[attributeName].value,
             oldValue,
           };
         }
         case "characterData": {
-          const { oldValue } = record;
+          const { oldValue } = mutationRecord;
           return {
             type,
             target,
@@ -81,7 +82,7 @@ class Analysis {
           };
         }
         case "childList": {
-          const { addedNodes, removedNodes } = record;
+          const { addedNodes, removedNodes } = mutationRecord;
           return {
             type,
             target,
@@ -92,10 +93,8 @@ class Analysis {
           };
         }
       }
-    });
-    for (const mutation of mutations) {
-      traceAcc.mutations.push(mutation);
-    }
+    })();
+    traceAcc.mutations.push(mutation);
 
     function getSerializedNodes(nodes) {
       return Array.from(nodes).map((node) => toSerializableValue(node, 0));
@@ -110,6 +109,13 @@ class Analysis {
         })
         .filter((s) => s.trim());
     }
+  }
+
+  addXHRRequest(requestRecord) {
+    const traceAcc = this.traceAcc;
+    if (!traceAcc) return;
+    if (!this.capturing) return;
+    traceAcc.xhrRequests.push(requestRecord);
   }
 }
 

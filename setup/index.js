@@ -4,6 +4,7 @@ const Analysis = require("./Analysis");
 const CallFlowTracker = require("./CallFlowTracker");
 const Set = require("./safe/Set");
 const wrapListeners = require("./wrapListeners");
+const wrapNetworkSinks = require("./wrapNetworkSinks");
 
 const apply = Reflect.apply;
 const HTMLInputElement = global.HTMLInputElement;
@@ -18,6 +19,9 @@ function isPasswordFieldInputEvent(e) {
       case "keypress":
       case "keyup":
         return true;
+      case "blur":
+      case "focusout":
+        return true;
       default:
         return false;
     }
@@ -28,10 +32,9 @@ function isPasswordFieldInputEvent(e) {
 
 const analysis = new Analysis();
 
+let mutObs;
 document.addEventListener("DOMContentLoaded", () => {
-  const mutObs = new MutationObserver((mutationList) => {
-    analysis.addMutationList(mutationList);
-  });
+  mutObs = new MutationObserver(() => {});
 
   mutObs.observe(document.body, {
     subtree: true,
@@ -48,18 +51,21 @@ const relevantFlows = new Set();
 const callFlowTracker = new CallFlowTracker({
   flowStart(flowId) {
     if (relevantFlows.has(flowId)) {
-      analysis.setFunctionCallCapturing(true);
+      mutObs?.takeRecords(); // reset the mutation queue
+      analysis.setCapturing(true);
     }
   },
 
-  flowEnd(_flowId) {
-    analysis.setFunctionCallCapturing(false);
-  },
-
-  flowContinue(flowId) {
+  flowEnd(flowId) {
     if (relevantFlows.has(flowId)) {
-      analysis.setFunctionCallCapturing(true);
+      const mutationList = mutObs?.takeRecords();
+      if (mutationList) {
+        for (const mutationRecord of mutationList) {
+          analysis.addMutation(mutationRecord);
+        }
+      }
     }
+    analysis.setCapturing(false);
   },
 });
 
@@ -89,16 +95,21 @@ global["$$ADVICE"] = {
   },
 };
 
+wrapNetworkSinks(function (requestRecord) {
+  analysis.addXHRRequest(requestRecord);
+});
+
 wrapListeners(
-  global,
   function buildListenerWrapper(_target, _type, listener) {
     const setterFlowId = callFlowTracker.flowId;
     return function (e) {
       if (isPasswordFieldInputEvent(e)) {
-        relevantFlows.add(callFlowTracker.requestNextFlowId());
         callFlowTracker.enter();
+        relevantFlows.add(callFlowTracker.flowId);
+        mutObs?.takeRecords(); // reset the mutation queue
+        analysis.setCapturing(true);
       } else {
-        callFlowTracker.continue(setterFlowId);
+        callFlowTracker.defer(setterFlowId);
       }
       try {
         return apply(listener, this, arguments);
@@ -110,7 +121,7 @@ wrapListeners(
   function buildCallbackWrapper(_target, callback) {
     const setterFlowId = callFlowTracker.flowId;
     return function () {
-      callFlowTracker.continue(setterFlowId);
+      callFlowTracker.defer(setterFlowId);
       try {
         return apply(callback, this, arguments);
       } finally {

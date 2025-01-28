@@ -11,7 +11,7 @@ const ownKeys = Reflect.ownKeys;
 const Boolean = global.Boolean;
 const String = global.String;
 
-function wrapListeners(global, buildListenerWrapper, buildCallbackWrapper) {
+function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
   buildListenerWrapper =
     buildListenerWrapper ||
     function (_target, _type, listener) {
@@ -236,30 +236,29 @@ function wrapListeners(global, buildListenerWrapper, buildCallbackWrapper) {
   const Promise_proto_finally = Promise_proto.finally;
 
   Promise_proto.then = function (onFulfilled, onRejected) {
-    if (typeof onFulfilled !== "function" || typeof onRejected !== "function") {
-      return apply(Promise_proto_then, this, arguments);
-    }
     return apply(Promise_proto_then, this, [
-      buildCallbackWrapper(this, onFulfilled),
-      buildCallbackWrapper(this, onRejected),
+      typeof onFulfilled === "function"
+        ? buildCallbackWrapper(this, onFulfilled)
+        : onFulfilled,
+      typeof onRejected === "function"
+        ? buildCallbackWrapper(this, onRejected)
+        : onRejected,
     ]);
   };
 
   Promise_proto.catch = function (onRejected) {
-    if (typeof onRejected !== "function") {
-      return apply(Promise_proto_catch, this, arguments);
-    }
     return apply(Promise_proto_catch, this, [
-      buildCallbackWrapper(this, onRejected),
+      typeof onRejected === "function"
+        ? buildCallbackWrapper(this, onRejected)
+        : onRejected,
     ]);
   };
 
   Promise_proto.finally = function (onFinally) {
-    if (typeof onFinally !== "function") {
-      return apply(Promise_proto_finally, this, arguments);
-    }
     return apply(Promise_proto_finally, this, [
-      buildCallbackWrapper(this, onFinally),
+      typeof onFinally === "function"
+        ? buildCallbackWrapper(this, onFinally)
+        : onFinally,
     ]);
   };
 }

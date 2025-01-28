@@ -41,9 +41,9 @@ export default async function instrument(
           const { loc: functionLoc } = node;
           assert(functionLoc);
           const sourceLocExpression = t.arrayExpression([
-            t.stringLiteral(sourceUrl),
-            t.numericLiteral(functionLoc.start.index),
-            t.numericLiteral(functionLoc.end.index),
+            t.valueToNode(sourceUrl),
+            t.valueToNode(functionLoc.start.index),
+            t.valueToNode(functionLoc.end.index),
           ]);
 
           if (t.isArrowFunctionExpression(node)) {
@@ -127,13 +127,23 @@ export default async function instrument(
         AwaitExpression(path) {
           const { node } = path;
           const { argument } = node;
+          const argumentPath = path.get("argument");
           node.argument = adviceCall("await", [argument]);
+          path.replaceWith(t.callExpression(node, []));
+          path.skip();
+          path.requeue(argumentPath);
         },
 
         ForOfStatement(path) {
           const { node } = path;
-          const { await: isAwait, right } = node;
+          const { await: isAwait, left, right } = node;
           if (!isAwait) return;
+          if (t.isVariableDeclaration(left)) {
+            const [declaration] = left.declarations;
+            declaration.id = t.arrayPattern([declaration.id]);
+          } else {
+            node.left = t.arrayPattern([left]);
+          }
           node.right = adviceCall("forAwaitOf", [right]);
         },
       },
