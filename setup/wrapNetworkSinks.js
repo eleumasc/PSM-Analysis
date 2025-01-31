@@ -8,7 +8,7 @@ const EventTarget_proto_addEventListener =
   EventTarget.prototype.addEventListener;
 const Request = global.Request;
 
-function wrapNetworkSinks(callback) {
+function wrapNetworkSinks(callback, callbackResponse) {
   const XMLHttpRequest_proto = XMLHttpRequest.prototype;
   const XMLHttpRequest_proto_open = XMLHttpRequest_proto.open;
   const XMLHttpRequest_proto_send = XMLHttpRequest_proto.send;
@@ -31,13 +31,16 @@ function wrapNetworkSinks(callback) {
           const status = this.status;
           const responseText = this.responseText;
 
-          callback({
-            method: requestMethod,
-            url: requestUrl,
-            body,
-            status,
-            responseText,
-          });
+          callbackResponse(
+            {
+              method: requestMethod,
+              url: requestUrl,
+              body,
+              status,
+              responseText,
+            },
+            this
+          );
         }
       },
     ]);
@@ -50,6 +53,8 @@ function wrapNetworkSinks(callback) {
   };
 
   XMLHttpRequest_proto.send = function () {
+    callback(this);
+
     const [body] = arguments;
 
     xhrBodyMap.set(this, toSerializableRequestBody(body));
@@ -64,6 +69,8 @@ function wrapNetworkSinks(callback) {
 
     const effectiveRequest = init ? new Request(request, init) : request;
 
+    callback(effectiveRequest);
+
     const requestClone = effectiveRequest.clone();
     const method = requestClone.method;
     const url = requestClone.url;
@@ -75,13 +82,16 @@ function wrapNetworkSinks(callback) {
     const status = responseClone.status;
     const responseText = await responseClone.text();
 
-    callback({
-      method,
-      url,
-      body,
-      status,
-      responseText,
-    });
+    callbackResponse(
+      {
+        method,
+        url,
+        body,
+        status,
+        responseText,
+      },
+      effectiveRequest
+    );
 
     return response;
   };

@@ -105,7 +105,7 @@ export async function runPasswordFieldInput(
         useBrowser(async (browser) => {
           const page = await browser.newPage();
           await installAnalysis(page, { workerExec });
-          return await bomb(
+          return bomb(
             () => inputPasswordField(page, domain, signupPageUrl),
             DEFAULT_ANALYSIS_TIMEOUT_MS
           );

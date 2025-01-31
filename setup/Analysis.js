@@ -58,7 +58,6 @@ class Analysis {
   addMutation(mutationRecord) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    if (!this.capturing) return;
     const mutation = (() => {
       const { type, target: nativeTarget } = mutationRecord;
       const target = toSerializableValue(nativeTarget, 0);
@@ -114,7 +113,6 @@ class Analysis {
   addXHRRequest(requestRecord) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    if (!this.capturing) return;
     traceAcc.xhrRequests.push(requestRecord);
   }
 }

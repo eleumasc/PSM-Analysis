@@ -25,8 +25,10 @@ export default async function inputPasswordField(
   const captureEnd = (): Promise<AnalysisTrace> =>
     frame.evaluate("$$ADVICE.captureEnd()");
 
+  await passwordField.focus();
+
   await capture();
-  await passwordField.pressSequentially(SAMPLE_WEAK_PASSWORD);
+  await passwordField.fill(SAMPLE_WEAK_PASSWORD);
   await timeout(CAPTURING_TIMEOUT_MS);
   const traceWeakFill = await captureEnd();
 
@@ -38,7 +40,7 @@ export default async function inputPasswordField(
   await passwordField.fill("");
 
   await capture();
-  await passwordField.pressSequentially(SAMPLE_STRONG_PASSWORD);
+  await passwordField.fill(SAMPLE_STRONG_PASSWORD);
   await timeout(CAPTURING_TIMEOUT_MS);
   const traceStrongFill = await captureEnd();
 

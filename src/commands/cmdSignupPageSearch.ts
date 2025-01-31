@@ -62,7 +62,7 @@ export async function runSignupPageSearch(
   const result = await toCompletion(() =>
     useBrowser(async (browser) => {
       const page = await browser.newPage();
-      return await bomb(
+      return bomb(
         () => searchSignupPage(page, domain),
         DEFAULT_ANALYSIS_TIMEOUT_MS
       );

@@ -3,6 +3,7 @@
 const Analysis = require("./Analysis");
 const CallFlowTracker = require("./CallFlowTracker");
 const Set = require("./safe/Set");
+const WeakMap = require("./safe/WeakMap");
 const wrapListeners = require("./wrapListeners");
 const wrapNetworkSinks = require("./wrapNetworkSinks");
 
@@ -95,9 +96,16 @@ global["$$ADVICE"] = {
   },
 };
 
-wrapNetworkSinks(function (requestRecord) {
-  analysis.addXHRRequest(requestRecord);
-});
+const networkSinkFlowIdMap = new WeakMap();
+
+wrapNetworkSinks(
+  function callback(request) {
+    networkSinkFlowIdMap.set(request, callFlowTracker.flowId);
+  },
+  function callbackResponse(requestRecord, request) {
+    analysis.addXHRRequest(requestRecord);
+  }
+);
 
 wrapListeners(
   function buildListenerWrapper(_target, _type, listener) {
