@@ -6,6 +6,8 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
 async function main() {
+  console.log(`PID: ${process.pid}`);
+
   yargs(hideBin(process.argv))
     .command(
       "load-domain-list <filepath>",
