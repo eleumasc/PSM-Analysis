@@ -1,6 +1,5 @@
 import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
 import { Completion, isFailure } from "../util/Completion";
-import { OldPasswordFieldInputResult } from "../core/OldPasswordFieldInputResult";
 import { PASSWORD_FIELD_INPUT_ANALYSIS_TYPE } from "./cmdPasswordFieldInput";
 import { SAMPLE_STRONG_PASSWORD } from "../core/inputPasswordField";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
@@ -60,14 +59,14 @@ export default function cmdMeasure(args: {
     const pfiCompletion = dao.getAnalysisResult(
       pfiAnalysisId,
       domainModel.id
-    ) as Completion<OldPasswordFieldInputResult>;
+    ) as Completion<PasswordFieldInputResult>;
     if (isFailure(pfiCompletion)) continue;
     const { value: pfiResult } = pfiCompletion;
     if (!pfiResult) continue; // TODO: fix status is success but value is undefined (serialization issue?)
 
     pfiDomainsCount += 1;
 
-    const trace = pfiResult; // pfiResult.traceStrongFill;
+    const trace = pfiResult.traceStrongFill;
 
     if (trace.mutations.length > 0) {
       hasPasswordWidgetDomains.push(domainModel.domain);
