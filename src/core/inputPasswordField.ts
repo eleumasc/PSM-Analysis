@@ -13,13 +13,13 @@ const CAPTURING_TIMEOUT_MS: number = 5000;
 
 export default async function inputPasswordField(
   page: Page,
-  domain: string,
+  domainName: string,
   signupPageUrl: string
 ): Promise<PasswordFieldInputResult> {
   const {
     passwordField,
     signupForm: { frame },
-  } = await locatePasswordField(page, domain, signupPageUrl);
+  } = await locatePasswordField(page, domainName, signupPageUrl);
 
   const capture = (): Promise<void> => frame.evaluate("$$ADVICE.capture()");
   const captureEnd = (): Promise<AnalysisTrace> =>

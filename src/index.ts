@@ -74,6 +74,9 @@ async function main() {
           })
           .option("max-instrument-worker-memory", {
             type: "number",
+          })
+          .option("test-domain-name", {
+            type: "string",
           }),
       (args) => cmdPasswordFieldInput({ action: "create", ...args })
     )

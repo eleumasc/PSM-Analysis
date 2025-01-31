@@ -1,5 +1,6 @@
 import currentTime from "../util/currentTime";
 import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
+import filterTestDomain from "../util/filterTestDomain";
 import inputPasswordField from "../core/inputPasswordField";
 import installAnalysis from "../core/installAnalysis";
 import processDomainTaskQueue from "../core/processDomainTaskQueue";
@@ -32,6 +33,7 @@ export default async function cmdPasswordFieldInput(
     maxTasks: number;
     maxInstrumentWorkers: number;
     maxInstrumentWorkerMemory: number | undefined;
+    testDomainName?: string;
   }
 ) {
   const dao = DataAccessObject.open();
@@ -44,9 +46,9 @@ export default async function cmdPasswordFieldInput(
           SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE
         )
       : args.analysisId;
-  const todoDomains = dao.getTodoDomains(
-    analysisId,
-    PASSWORD_FIELD_INPUT_ANALYSIS_TYPE
+  const todoDomains = filterTestDomain(
+    args.testDomainName,
+    dao.getTodoDomains(analysisId, PASSWORD_FIELD_INPUT_ANALYSIS_TYPE)
   );
 
   console.log(`Analysis ID: ${analysisId}`);
@@ -75,7 +77,7 @@ export async function runPasswordFieldInput(
 ) {
   const dao = DataAccessObject.open();
 
-  const { id: domainId, rank: domainRank, domain } = domainModel;
+  const { id: domainId, rank: domainRank, name: domainName } = domainModel;
 
   const parentCompletion = dao.getAnalysisResult(
     dao.getAnalysis(analysisId).parentAnalysisId!,
@@ -93,7 +95,7 @@ export async function runPasswordFieldInput(
     return;
   }
 
-  console.log(`begin analysis ${domain} [${domainRank}]`);
+  console.log(`begin analysis ${domainName} [${domainRank}]`);
   const startTime = currentTime();
   const completion = await toCompletion(() =>
     useWorker(
@@ -106,14 +108,14 @@ export async function runPasswordFieldInput(
           const page = await browser.newPage();
           await installAnalysis(page, { workerExec });
           return bomb(
-            () => inputPasswordField(page, domain, signupPageUrl),
+            () => inputPasswordField(page, domainName, signupPageUrl),
             DEFAULT_ANALYSIS_TIMEOUT_MS
           );
         })
     )
   );
   const endTime = currentTime();
-  console.log(`end analysis ${domain} [${domainRank}]`);
+  console.log(`end analysis ${domainName} [${domainRank}]`);
 
   const timeInfo = { startTime, endTime };
   dao.createAnalysisResult(analysisId, domainId, completion, timeInfo);

@@ -55,21 +55,21 @@ export async function runSignupPageSearch(
 ) {
   const dao = DataAccessObject.open();
 
-  const { id: domainId, rank: domainRank, domain } = domainModel;
+  const { id: domainId, rank: domainRank, name: domainName } = domainModel;
 
-  console.log(`begin analysis ${domain} [${domainRank}]`);
+  console.log(`begin analysis ${domainName} [${domainRank}]`);
   const startTime = currentTime();
   const result = await toCompletion(() =>
     useBrowser(async (browser) => {
       const page = await browser.newPage();
       return bomb(
-        () => searchSignupPage(page, domain),
+        () => searchSignupPage(page, domainName),
         DEFAULT_ANALYSIS_TIMEOUT_MS
       );
     })
   );
   const endTime = currentTime();
-  console.log(`end analysis ${domain} [${domainRank}]`);
+  console.log(`end analysis ${domainName} [${domainRank}]`);
 
   const timeInfo = { startTime, endTime };
   dao.createAnalysisResult(analysisId, domainId, result, timeInfo);

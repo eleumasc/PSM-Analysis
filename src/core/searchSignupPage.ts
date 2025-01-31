@@ -46,7 +46,7 @@ export type SearchSignupPageResult = {
 // signup page search à la Alroomi et Li
 export default async function searchSignupPage(
   page: Page,
-  domain: string
+  domainName: string
 ): Promise<SearchSignupPageResult> {
   const logRecords: LogRecord[] = [];
 
@@ -120,7 +120,7 @@ export default async function searchSignupPage(
   {
     logRecords.push({ type: "init-step", step: 1 });
     const { targetUrl: landingPageUrl, formStructures } = await navigate(
-      `http://${domain}/`
+      `http://${domainName}/`
     );
     if (findSignupForm(formStructures)) {
       return createResult(landingPageUrl);
@@ -146,7 +146,7 @@ export default async function searchSignupPage(
   // (3) Query a search engine (Bing) for the domain’s account signup pages.
   {
     logRecords.push({ type: "init-step", step: 3 });
-    await page.goto(`https://www.bing.com/search?q=${domain}+signup`);
+    await page.goto(`https://www.bing.com/search?q=${domainName}+signup`);
     const candidateEntries = (
       await page
         .locator("#b_results > li.b_algo h2 a")

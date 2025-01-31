@@ -69,7 +69,7 @@ export default function cmdMeasure(args: {
     const trace = pfiResult.traceStrongFill;
 
     if (trace.mutations.length > 0) {
-      hasPasswordWidgetDomains.push(domainModel.domain);
+      hasPasswordWidgetDomains.push(domainModel.name);
     }
 
     for (const functionCall of trace.functionCalls) {

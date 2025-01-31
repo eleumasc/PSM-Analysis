@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS domains (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   domain_list INTEGER NOT NULL,
   rank INTEGER NOT NULL,
-  domain TEXT NOT NULL,
+  name TEXT NOT NULL,
 
   FOREIGN KEY (domain_list) REFERENCES domain_lists (id) ON DELETE CASCADE
 );

@@ -23,7 +23,7 @@ export default class DataAccessObject {
     return new DataAccessObject(db);
   }
 
-  createDomainList(filename: string, domains: string[]): Rowid {
+  createDomainList(filename: string, domainNames: string[]): Rowid {
     const { db } = this;
 
     return db.transaction(() => {
@@ -32,14 +32,14 @@ export default class DataAccessObject {
       );
       const domainListId = stmtDomainListInsert.run([filename]).lastInsertRowid;
 
-      const domainRows = domains.map((domain, i) => [
+      const domainRows = domainNames.map((domainName, i) => [
         domainListId,
         i + 1,
-        domain,
+        domainName,
       ]);
 
       const stmtDomainInsert = db.prepare(
-        "INSERT INTO domains (domain_list, rank, domain) VALUES (?, ?, ?)"
+        "INSERT INTO domains (domain_list, rank, name) VALUES (?, ?, ?)"
       );
       for (const domainRow of domainRows) {
         stmtDomainInsert.run(domainRow);
@@ -186,15 +186,15 @@ export default class DataAccessObject {
 export type DomainModel = {
   id: Rowid;
   rank: number;
-  domain: string;
+  name: string;
 };
 
 function toDomainModel(row: any): DomainModel {
-  const { id, rank, domain } = row;
+  const { id, rank, name } = row;
   return {
     id,
     rank,
-    domain,
+    name,
   };
 }
 

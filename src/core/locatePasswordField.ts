@@ -13,7 +13,7 @@ export type LocatePasswordFieldResult = {
 
 export default async function locatePasswordField(
   page: Page,
-  domain: string,
+  domainName: string,
   signupPageUrl: string
 ): Promise<LocatePasswordFieldResult> {
   await page.goto(signupPageUrl);
@@ -25,7 +25,7 @@ export default async function locatePasswordField(
   } else {
     throw new Error("Cannot find signup form");
 
-    // const searchSignupPageResult = await searchSignupPage(page, domain);
+    // const searchSignupPageResult = await searchSignupPage(page, domainName);
     // if (!searchSignupPageResult.signupPageUrl) {
     //   throw new Error("Cannot find signup page");
     // }
