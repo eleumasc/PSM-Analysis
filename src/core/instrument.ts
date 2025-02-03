@@ -38,6 +38,53 @@ export default async function instrument(
         Function(path) {
           const { node } = path;
 
+          // process `var` declarations for hoisting
+
+          const varDecls = Object.values(path.scope.bindings)
+            .filter((binding) => binding.kind === "var")
+            .map((binding) => t.variableDeclarator(binding.identifier));
+
+          path.traverse({
+            VariableDeclaration(path) {
+              const { node } = path;
+              if (node.kind !== "var") return;
+              if (path.canHaveVariableDeclarationOrExpression()) {
+                if (path.parentPath.isForStatement()) {
+                  path.replaceWith(
+                    t.sequenceExpression(
+                      node.declarations
+                        .filter((decl) => decl.init)
+                        .map((decl) =>
+                          t.assignmentExpression("=", decl.id, decl.init!)
+                        )
+                    )
+                  );
+                } else {
+                  assert(node.declarations.length === 1);
+                  path.replaceWith(node.declarations[0].id);
+                }
+              } else {
+                path.replaceWith(
+                  t.expressionStatement(
+                    t.sequenceExpression(
+                      node.declarations
+                        .filter((decl) => decl.init)
+                        .map((decl) =>
+                          t.assignmentExpression("=", decl.id, decl.init!)
+                        )
+                    )
+                  )
+                );
+              }
+            },
+
+            Function(path) {
+              path.skip();
+            },
+          });
+
+          // instrument function body
+
           const { loc: functionLoc } = node;
           assert(functionLoc);
           const sourceLocExpression = t.arrayExpression([
@@ -46,30 +93,14 @@ export default async function instrument(
             t.valueToNode(functionLoc.end.index),
           ]);
 
-          if (t.isArrowFunctionExpression(node)) {
-            const { body, params } = node;
-            node.params = [t.restElement(ARG)];
-            node.body = t.blockStatement([
-              t.variableDeclaration("var", [
-                t.variableDeclarator(t.arrayPattern(params), ARG),
-              ]),
-              ...instrumentFunctionBody(
-                t.isExpression(body)
-                  ? t.blockStatement([t.returnStatement(body)])
-                  : body,
-                ARG
-              ).body,
-            ]);
-          } else {
-            const { body } = node;
-            node.body = instrumentFunctionBody(body, t.identifier("arguments"));
-          }
-
-          function instrumentFunctionBody(
+          const instrumentedFunctionBody = (
             node: babel.types.BlockStatement,
             argIdentifier: babel.types.Identifier
-          ): babel.types.BlockStatement {
+          ): babel.types.BlockStatement => {
             return t.blockStatement([
+              ...(varDecls.length > 0
+                ? [t.variableDeclaration("var", varDecls)]
+                : []),
               t.variableDeclaration("var", [
                 t.variableDeclarator(CID),
                 t.variableDeclarator(RET),
@@ -104,6 +135,28 @@ export default async function instrument(
                 ])
               ),
             ]);
+          };
+
+          if (t.isArrowFunctionExpression(node)) {
+            const { body, params } = node;
+            node.params = [t.restElement(ARG)];
+            node.body = t.blockStatement([
+              t.variableDeclaration("var", [
+                t.variableDeclarator(t.arrayPattern(params), ARG),
+              ]),
+              ...instrumentedFunctionBody(
+                t.isExpression(body)
+                  ? t.blockStatement([t.returnStatement(body)])
+                  : body,
+                ARG
+              ).body,
+            ]);
+          } else {
+            const { body } = node;
+            node.body = instrumentedFunctionBody(
+              body,
+              t.identifier("arguments")
+            );
           }
         },
 
