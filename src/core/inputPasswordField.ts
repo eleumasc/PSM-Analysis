@@ -38,6 +38,7 @@ export default async function inputPasswordField(
   const traceWeakBlur = await captureEnd();
 
   await passwordField.fill("");
+  await timeout(1000);
 
   await capture();
   await passwordField.fill(SAMPLE_STRONG_PASSWORD);
