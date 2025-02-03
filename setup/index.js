@@ -6,6 +6,7 @@ const Set = require("./safe/Set");
 const WeakMap = require("./safe/WeakMap");
 const wrapListeners = require("./wrapListeners");
 const wrapNetworkSinks = require("./wrapNetworkSinks");
+const wrapPostMessage = require("./wrapPostMessage");
 
 const apply = Reflect.apply;
 const HTMLInputElement = global.HTMLInputElement;
@@ -103,15 +104,25 @@ wrapNetworkSinks(
     networkSinkFlowIdMap.set(request, callFlowTracker.flowId);
   },
   function callbackResponse(requestRecord, request) {
-    analysis.addXHRRequest(requestRecord);
+    if (relevantFlows.has(networkSinkFlowIdMap.get(request))) {
+      analysis.addXHRRequest(requestRecord);
+    }
   }
 );
+
+wrapPostMessage(function callbackMeta() {
+  return { flowId: callFlowTracker.flowId };
+});
+
+function isRelevantMessageEvent(e) {
+  return e.type === "message" && e.meta && relevantFlows.has(e.meta.flowId);
+}
 
 wrapListeners(
   function buildListenerWrapper(_target, _type, listener) {
     const setterFlowId = callFlowTracker.flowId;
     return function (e) {
-      if (isPasswordFieldInputEvent(e)) {
+      if (isPasswordFieldInputEvent(e) || isRelevantMessageEvent(e)) {
         callFlowTracker.enter();
         relevantFlows.add(callFlowTracker.flowId);
         mutObs?.takeRecords(); // reset the mutation queue
