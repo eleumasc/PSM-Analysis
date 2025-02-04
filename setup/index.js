@@ -2,6 +2,7 @@
 
 const Analysis = require("./Analysis");
 const CallFlowTracker = require("./CallFlowTracker");
+const preventIntegrityCheck = require("./preventIntegrityCheck");
 const Set = require("./safe/Set");
 const WeakMap = require("./safe/WeakMap");
 const wrapListeners = require("./wrapListeners");
@@ -149,5 +150,7 @@ wrapListeners(
     };
   }
 );
+
+preventIntegrityCheck();
 
 console.log("setup completed");
