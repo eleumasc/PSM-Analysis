@@ -93,8 +93,8 @@ class Advice {
     })();
   }
 
-  async *forAwaitOf(asyncIterator) {
-    return ForAwaitOfIterable(asyncIterator, this.tracker);
+  forAwaitOf(asyncIterator) {
+    return new ForAwaitOfIterable(asyncIterator, this.tracker);
   }
 }
 

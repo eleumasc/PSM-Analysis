@@ -61,7 +61,8 @@ export default async function instrument(
                   );
                 } else {
                   assert(node.declarations.length === 1);
-                  path.replaceWith(node.declarations[0].id);
+                  const [declaration] = node.declarations;
+                  path.replaceWith(declaration.id);
                 }
               } else {
                 path.replaceWith(
@@ -192,6 +193,7 @@ export default async function instrument(
           const { await: isAwait, left, right } = node;
           if (!isAwait) return;
           if (t.isVariableDeclaration(left)) {
+            assert(left.declarations.length === 1);
             const [declaration] = left.declarations;
             declaration.id = t.arrayPattern([declaration.id]);
           } else {
