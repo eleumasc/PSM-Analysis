@@ -6,6 +6,7 @@ import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
 import { writeFileSync } from "fs";
 import {
+  AnalysisTrace,
   FunctionCall,
   PasswordFieldInputResult,
 } from "../core/PasswordFieldInputResult";
@@ -66,7 +67,25 @@ export default function cmdMeasure(args: {
 
     pfiDomainsCount += 1;
 
-    const trace = pfiResult.traceStrongFill;
+    const trace = [
+      pfiResult.traceWeakFill,
+      pfiResult.traceWeakBlur,
+      pfiResult.traceStrongFill,
+      pfiResult.traceStrongBlur,
+    ].reduce<AnalysisTrace>(
+      (acc, cur) => {
+        return {
+          functionCalls: [...acc.functionCalls, ...cur.functionCalls],
+          mutations: [...acc.mutations, ...cur.mutations],
+          xhrRequests: [...acc.xhrRequests, ...cur.xhrRequests],
+        };
+      },
+      {
+        functionCalls: [],
+        mutations: [],
+        xhrRequests: [],
+      }
+    );
 
     if (trace.mutations.length > 0) {
       hasPasswordWidgetDomains.push(domainModel.name);
