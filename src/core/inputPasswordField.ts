@@ -28,7 +28,7 @@ export default async function inputPasswordField(
   await passwordField.focus();
 
   await capture();
-  await passwordField.fill(SAMPLE_WEAK_PASSWORD);
+  await passwordField.pressSequentially(SAMPLE_WEAK_PASSWORD);
   await timeout(CAPTURING_TIMEOUT_MS);
   const traceWeakFill = await captureEnd();
 
@@ -41,7 +41,7 @@ export default async function inputPasswordField(
   await timeout(1000);
 
   await capture();
-  await passwordField.fill(SAMPLE_STRONG_PASSWORD);
+  await passwordField.pressSequentially(SAMPLE_STRONG_PASSWORD);
   await timeout(CAPTURING_TIMEOUT_MS);
   const traceStrongFill = await captureEnd();
 
