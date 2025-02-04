@@ -65,18 +65,16 @@ function wrapNetworkSinks(callback, callbackResponse) {
   const global_fetch = global.fetch;
 
   global.fetch = async function () {
-    const [request, init] = arguments;
+    const [resource, init] = arguments;
 
-    const effectiveRequest = init ? new Request(request, init) : request;
+    const request = new Request(resource, init);
+    callback(request);
 
-    callback(effectiveRequest);
+    const method = request.method;
+    const url = request.url;
+    const body = await request.text();
 
-    const requestClone = effectiveRequest.clone();
-    const method = requestClone.method;
-    const url = requestClone.url;
-    const body = await requestClone.text();
-
-    const response = await apply(global_fetch, this, [effectiveRequest]);
+    const response = await apply(global_fetch, this, [resource, init]);
 
     const responseClone = response.clone();
     const status = responseClone.status;
@@ -90,7 +88,7 @@ function wrapNetworkSinks(callback, callbackResponse) {
         status,
         responseText,
       },
-      effectiveRequest
+      request
     );
 
     return response;
