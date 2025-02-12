@@ -207,22 +207,20 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
   const global_setInterval = global.setInterval;
 
   global.setTimeout = function (callback, delay, ...params) {
-    if (typeof callback !== "function") {
-      return apply(global_setTimeout, this, arguments);
-    }
     return apply(global_setTimeout, this, [
-      buildCallbackWrapper(this, callback),
+      typeof callback === "function"
+        ? buildCallbackWrapper(this, callback)
+        : callback,
       delay,
       ...params,
     ]);
   };
 
   global.setInterval = function (callback, delay, ...params) {
-    if (typeof callback !== "function") {
-      return apply(global_setInterval, this, arguments);
-    }
     return apply(global_setInterval, this, [
-      buildCallbackWrapper(this, callback),
+      typeof callback === "function"
+        ? buildCallbackWrapper(this, callback)
+        : callback,
       delay,
       ...params,
     ]);
@@ -259,6 +257,30 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
       typeof onFinally === "function"
         ? buildCallbackWrapper(this, onFinally)
         : onFinally,
+    ]);
+  };
+
+  // queueMicrotask
+
+  const global_queueMicrotask = global.queueMicrotask;
+
+  global.queueMicrotask = function (callback) {
+    return apply(global_queueMicrotask, this, [
+      typeof callback === "function"
+        ? buildCallbackWrapper(this, callback)
+        : callback,
+    ]);
+  };
+
+  // requestAnimationFrame
+
+  const global_requestAnimationFrame = global.requestAnimationFrame;
+
+  global.requestAnimationFrame = function (callback) {
+    return apply(global_requestAnimationFrame, this, [
+      typeof callback === "function"
+        ? buildCallbackWrapper(this, callback)
+        : callback,
     ]);
   };
 }
