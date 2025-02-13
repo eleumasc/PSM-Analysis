@@ -16,11 +16,11 @@ function isPasswordFieldInputEvent(e) {
   const target = e.target;
   if (target instanceof HTMLInputElement && target.type === "password") {
     switch (e.type) {
-      case "change":
-      case "input":
       case "keydown":
       case "keypress":
+      case "input":
       case "keyup":
+      case "change":
         return true;
       case "blur":
       case "focusout":
@@ -89,8 +89,8 @@ global["$$ADVICE"] = {
     super.leave();
   },
 
-  capture() {
-    analysis.capture();
+  capture(password) {
+    analysis.capture(password);
   },
 
   captureEnd() {

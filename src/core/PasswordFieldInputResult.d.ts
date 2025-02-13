@@ -1,21 +1,28 @@
-export type PasswordFieldInputResult = {
-  traceWeakFill: AnalysisTrace;
-  traceWeakBlur: AnalysisTrace;
-  traceStrongFill: AnalysisTrace;
-  traceStrongBlur: AnalysisTrace;
+export type PasswordFieldInputResult = PasswordFieldInputResultItem[];
+
+export type PasswordFieldInputResultItem = {
+  password: string;
+  fillTrace: AnalysisTrace;
+  blurTrace: AnalysisTrace;
 };
 
 export type AnalysisTrace = {
   functionCalls: FunctionCall[];
-  mutations: Mutation[];
   xhrRequests: XHRRequest[];
+  incState: IncState;
 };
 
 export type FunctionCall = {
   sourceLoc: SourceLoc;
-  args: SerializableValue[];
-  ret?: { v: SerializableValue };
-  exc?: { e: SerializableValue };
+  ret: { v: SerializableValue };
+};
+
+export type XHRRequest = {
+  method: string;
+  url: string;
+  body: string;
+  status: number;
+  responseText: string;
 };
 
 export type Mutation =
@@ -41,13 +48,7 @@ export type Mutation =
       removedTexts: string[];
     };
 
-export type XHRRequest = {
-  method: string;
-  url: string;
-  body: string;
-  status: number;
-  responseText: string;
-};
+export type IncState = { key: string; value: string }[];
 
 export type SourceLoc = [string, number, number];
 

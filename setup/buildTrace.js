@@ -1,11 +1,17 @@
 "use strict";
 
+const getIncState = require("./getIncState");
+const mayBeScoreFunctionCall = require("./mayBeScoreFunctionCall");
+const Array = require("./safe/Array");
+
 function buildTrace(traceAcc) {
+  const { password, functionCalls, xhrRequests, mutationRecords } = traceAcc;
   return {
-    // functionCalls: [...traceAcc.functionCalls.values()], // TODO: uncomment and make payload more lightweight
-    functionCalls: [],
-    mutations: [...traceAcc.mutations],
-    xhrRequests: [...traceAcc.xhrRequests],
+    functionCalls: Array.from(functionCalls.values())
+      .filter((functionCall) => mayBeScoreFunctionCall(functionCall, password))
+      .map(({ sourceLoc, ret }) => ({ sourceLoc, ret })),
+    xhrRequests: Array.from(xhrRequests),
+    incState: getIncState(Array.from(mutationRecords)),
   };
 }
 

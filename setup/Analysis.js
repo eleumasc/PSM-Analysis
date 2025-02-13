@@ -13,11 +13,13 @@ class Analysis {
     this.traceAcc = null;
   }
 
-  capture() {
+  capture(password) {
     this.traceAcc = {
+      password,
       functionCalls: new Map(),
-      mutations: new Array(),
       xhrRequests: new Array(),
+      mutations: new Array(),
+      mutationRecords: new Array(),
     };
   }
 
@@ -58,6 +60,7 @@ class Analysis {
   addMutation(mutationRecord) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
+    traceAcc.mutationRecords.push(mutationRecord);
     const mutation = (() => {
       const { type, target: nativeTarget } = mutationRecord;
       const target = toSerializableValue(nativeTarget, 0);

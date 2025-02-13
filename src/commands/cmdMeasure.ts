@@ -1,21 +1,10 @@
 import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
 import { Completion, isFailure } from "../util/Completion";
 import { PASSWORD_FIELD_INPUT_ANALYSIS_TYPE } from "./cmdPasswordFieldInput";
-import { SAMPLE_STRONG_PASSWORD } from "../core/inputPasswordField";
+import { PasswordFieldInputResult } from "../core/PasswordFieldInputResult";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
 import { writeFileSync } from "fs";
-import {
-  AnalysisTrace,
-  FunctionCall,
-  PasswordFieldInputResult,
-} from "../core/PasswordFieldInputResult";
-
-const PSM_REGEXP: RegExp =
-  /weak|so-so|good|great|fair|strong|medium|best|okay|perfect|poor|moderate|excellent|low|high|strength|security|level/i;
-
-const PVW_REGEXP: RegExp =
-  /word|letter|character|upper[\s-]?case|lower[\s-]?case|digit|number|symbol|special/i;
 
 export default function cmdMeasure(args: {
   pfiAnalysisId: number;
@@ -50,11 +39,7 @@ export default function cmdMeasure(args: {
   }
 
   let pfiDomainsCount = 0;
-  const hasPasswordWidgetDomains: string[] = [];
-  const relevantFunctionCalls: FunctionCall[] = [];
-  let mutationDomainsCount = 0;
-  const mutatedAttributesRanking = new Map<string, number>();
-  const mutatedTexts: string[] = [];
+  const passwordFeedbackDomains: string[] = [];
 
   for (const domainModel of dao.getDoneDomains(pfiAnalysisId)) {
     const pfiCompletion = dao.getAnalysisResult(
@@ -67,60 +52,12 @@ export default function cmdMeasure(args: {
 
     pfiDomainsCount += 1;
 
-    const trace = [
-      pfiResult.traceWeakFill,
-      pfiResult.traceWeakBlur,
-      pfiResult.traceStrongFill,
-      pfiResult.traceStrongBlur,
-    ].reduce<AnalysisTrace>(
-      (acc, cur) => {
-        return {
-          functionCalls: [...acc.functionCalls, ...cur.functionCalls],
-          mutations: [...acc.mutations, ...cur.mutations],
-          xhrRequests: [...acc.xhrRequests, ...cur.xhrRequests],
-        };
-      },
-      {
-        functionCalls: [],
-        mutations: [],
-        xhrRequests: [],
-      }
-    );
-
-    if (trace.mutations.length > 0) {
-      hasPasswordWidgetDomains.push(domainModel.name);
-    }
-
-    for (const functionCall of trace.functionCalls) {
-      if (functionCall.args.includes(SAMPLE_STRONG_PASSWORD)) {
-        relevantFunctionCalls.push(functionCall);
-      }
-    }
-
-    if (trace.mutations.length > 0) {
-      mutationDomainsCount += 1;
-    }
-    const mutatedAttributes = new Set<string>();
-    for (const mutation of trace.mutations) {
-      switch (mutation.type) {
-        case "attributes":
-          mutatedAttributes.add(mutation.attributeName); // TODO: add innerText
-          break;
-        case "characterData":
-          mutatedTexts.push(mutation.value);
-          break;
-        case "childList":
-          for (const text of mutation.addedTexts) {
-            mutatedTexts.push(text);
-          }
-          break;
-      }
-    }
-    for (const attribute of mutatedAttributes) {
-      mutatedAttributesRanking.set(
-        attribute,
-        (mutatedAttributesRanking.get(attribute) ?? 0) + 1
-      );
+    if (
+      pfiResult
+        .flatMap((item) => [item.fillTrace, item.blurTrace])
+        .some((trace) => trace.incState)
+    ) {
+      passwordFeedbackDomains.push(domainModel.name);
     }
   }
 
@@ -128,18 +65,7 @@ export default function cmdMeasure(args: {
     accessibleDomainsCount,
     signupPagesCount,
     pfiDomainsCount,
-    hasPasswordWidgetDomains,
-    relevantFunctionCalls,
-    mutationDomainsCount,
-    mutatedAttributesRanking: Object.fromEntries(
-      [...mutatedAttributesRanking].sort(([, a], [, b]) => b - a)
-    ),
-    mutatedTexts: [...new Set(mutatedTexts)],
-    mutatedTextsCount: mutatedTexts.length,
-    psmMutatedTextsCount: mutatedTexts.filter((text) => PSM_REGEXP.test(text))
-      .length,
-    pvwMutatedTextsCount: mutatedTexts.filter((text) => PVW_REGEXP.test(text))
-      .length,
+    passwordFeedbackDomains,
   };
 
   writeFileSync("output.json", JSON.stringify(report, undefined, 2));
