@@ -85,8 +85,8 @@ global["$$ADVICE"] = {
   },
 
   leave(callId, ret, exc) {
-    super.leave();
     analysis.addFunctionLeave(callId, ret, exc);
+    super.leave();
   },
 
   capture() {
