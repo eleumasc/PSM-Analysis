@@ -1,6 +1,6 @@
 import currentTime from "../util/currentTime";
 import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
-import processDomainTaskQueue from "../core/processDomainTaskQueue";
+import processDomainTaskQueue from "../util/processDomainTaskQueue";
 import searchSignupPage from "../core/searchSignupPage";
 import useBrowser from "../util/useBrowser";
 import { bomb } from "../util/timeout";

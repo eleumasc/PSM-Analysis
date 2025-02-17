@@ -3,7 +3,7 @@ import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
 import filterTestDomain from "../util/filterTestDomain";
 import inputPasswordField from "../core/inputPasswordField";
 import installAnalysis from "../core/installAnalysis";
-import processDomainTaskQueue from "../core/processDomainTaskQueue";
+import processDomainTaskQueue from "../util/processDomainTaskQueue";
 import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";

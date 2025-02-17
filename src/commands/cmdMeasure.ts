@@ -1,9 +1,12 @@
+import ConfusionMatrix from "../util/ConfusionMatrix";
 import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
 import { Completion, isFailure } from "../util/Completion";
+import { detectPSM } from "../core/detectPSM";
 import { PASSWORD_FIELD_INPUT_ANALYSIS_TYPE } from "./cmdPasswordFieldInput";
 import { PasswordFieldInputResult } from "../core/PasswordFieldInputResult";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
+import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
 
 export default function cmdMeasure(args: {
@@ -39,7 +42,8 @@ export default function cmdMeasure(args: {
   }
 
   let pfiDomainsCount = 0;
-  const passwordFeedbackDomains: string[] = [];
+  const psmDomainNames: string[] = [];
+  const psmConfusionMatrix = new ConfusionMatrix<string>();
 
   for (const domainModel of dao.getDoneDomains(pfiAnalysisId)) {
     const pfiCompletion = dao.getAnalysisResult(
@@ -52,12 +56,14 @@ export default function cmdMeasure(args: {
 
     pfiDomainsCount += 1;
 
-    if (
-      pfiResult
-        .flatMap((item) => [item.fillTrace, item.blurTrace])
-        .some((trace) => trace.incState)
-    ) {
-      passwordFeedbackDomains.push(domainModel.name);
+    const psmDetected = detectPSM(pfiResult);
+    if (psmDetected) {
+      psmDomainNames.push(domainModel.name);
+    }
+
+    if (TRUTH.has(domainModel.name)) {
+      const truth = TRUTH.get(domainModel.name)!;
+      psmConfusionMatrix.addValue(domainModel.name, psmDetected, truth[0]);
     }
   }
 
@@ -65,7 +71,8 @@ export default function cmdMeasure(args: {
     accessibleDomainsCount,
     signupPagesCount,
     pfiDomainsCount,
-    passwordFeedbackDomains,
+    psmDomainNames,
+    psmConfusionMatrix: psmConfusionMatrix.get(),
   };
 
   writeFileSync("output.json", JSON.stringify(report, undefined, 2));

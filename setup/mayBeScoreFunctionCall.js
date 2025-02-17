@@ -1,5 +1,7 @@
 "use strict";
 
+const mayBeScore = require("./mayBeScore");
+
 const Boolean = global.Boolean;
 const Object_values = Object.values;
 
@@ -18,10 +20,6 @@ function mayIncludeScore(serializedValue) {
         mayBeScore(objSerializedValue)
       ))
   );
-}
-
-function mayBeScore(serializedValue) {
-  return typeof serializedValue === "number" && serializedValue % 1 === 0;
 }
 
 module.exports = mayBeScoreFunctionCall;

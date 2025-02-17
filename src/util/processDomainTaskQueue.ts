@@ -1,5 +1,5 @@
-import useTaskQueue, { Task } from "./taskQueue";
-import { DomainModel } from "./DataAccessObject";
+import useTaskQueue, { Task } from "../util/TaskQueue";
+import { DomainModel } from "../core/DataAccessObject";
 
 export default function processDomainTaskQueue(
   todoDomains: DomainModel[],
