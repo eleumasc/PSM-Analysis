@@ -1,6 +1,6 @@
-export type PasswordFieldInputResult = PasswordFieldInputResultItem[];
+export type PasswordFieldInputResult = PasswordFieldInputResultRecord[];
 
-export type PasswordFieldInputResultItem = {
+export type PasswordFieldInputResultRecord = {
   password: string;
   fillTrace: AnalysisTrace;
   blurTrace: AnalysisTrace;
@@ -14,7 +14,7 @@ export type AnalysisTrace = {
 
 export type FunctionCall = {
   sourceLoc: SourceLoc;
-  ret: { v: SerializableValue };
+  ret: SerializableValue;
 };
 
 export type XHRRequest = {

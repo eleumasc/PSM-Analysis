@@ -9,7 +9,7 @@ function buildTrace(traceAcc) {
   return {
     functionCalls: Array.from(functionCalls.values())
       .filter((functionCall) => mayBeScoreFunctionCall(functionCall, password))
-      .map(({ sourceLoc, ret }) => ({ sourceLoc, ret })),
+      .map(({ sourceLoc, ret }) => ({ sourceLoc, ret: ret.v })),
     xhrRequests: Array.from(xhrRequests),
     incState: getIncState(Array.from(mutationRecords)),
   };

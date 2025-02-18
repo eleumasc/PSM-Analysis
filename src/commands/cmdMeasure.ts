@@ -1,7 +1,7 @@
 import ConfusionMatrix from "../util/ConfusionMatrix";
 import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
 import { Completion, isFailure } from "../util/Completion";
-import { detectPSM } from "../core/detectPSM";
+import { detectPSM } from "../core/detection/detectPSM";
 import { PASSWORD_FIELD_INPUT_ANALYSIS_TYPE } from "./cmdPasswordFieldInput";
 import { PasswordFieldInputResult } from "../core/PasswordFieldInputResult";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
