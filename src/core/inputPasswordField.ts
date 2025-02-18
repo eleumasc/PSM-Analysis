@@ -6,15 +6,14 @@ import {
   PasswordFieldInputResult,
 } from "./PasswordFieldInputResult";
 
-export const SAMPLE_WEAK_PASSWORD: string = "12345aA!";
-export const SAMPLE_STRONG_PASSWORD: string = "Hg%4cvUz2^#{<~[?!Ch@";
-
-const CAPTURING_TIMEOUT_MS: number = 5000;
+const CAPTURE_TIMEOUT_MS: number = 5000;
+const CLEAR_TIMEOUT_MS: number = 1000;
 
 export default async function inputPasswordField(
   page: Page,
   domainName: string,
-  signupPageUrl: string
+  signupPageUrl: string,
+  passwordList: string[]
 ): Promise<PasswordFieldInputResult> {
   const {
     passwordField,
@@ -31,21 +30,21 @@ export default async function inputPasswordField(
 
   await passwordField.focus();
 
-  for (const password of [SAMPLE_WEAK_PASSWORD, SAMPLE_STRONG_PASSWORD]) {
+  for (const password of passwordList) {
     if (dirty) {
       await passwordField.fill("");
-      await timeout(1000);
+      await timeout(CLEAR_TIMEOUT_MS);
     }
     dirty = true;
 
     await capture(password);
     await passwordField.pressSequentially(password);
-    await timeout(CAPTURING_TIMEOUT_MS);
+    await timeout(CAPTURE_TIMEOUT_MS);
     const fillTrace = await captureEnd();
 
     await capture(password);
     await passwordField.blur();
-    await timeout(CAPTURING_TIMEOUT_MS);
+    await timeout(CAPTURE_TIMEOUT_MS);
     const blurTrace = await captureEnd();
 
     result.push({ password, fillTrace, blurTrace });

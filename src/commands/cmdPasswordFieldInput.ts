@@ -8,6 +8,7 @@ import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
 import { DEFAULT_ANALYSIS_TIMEOUT_MS } from "../core/defaults";
+import { detectPSM } from "../core/detection/detectPSM";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
 import {
@@ -16,6 +17,13 @@ import {
   isFailure,
   toCompletion,
 } from "../util/Completion";
+import {
+  SAMPLE_STRONG_PASSWORD,
+  SAMPLE_WEAK_PASSWORD,
+  VARIATING_COMPLEXITY_PASSWORDS,
+  VARIATING_LENGTH_NO_PATTERN_PASSWORDS,
+  VARIATING_LENGTH_WITH_PATTERN_PASSWORDS,
+} from "../data/passwords";
 
 export const PASSWORD_FIELD_INPUT_ANALYSIS_TYPE = "password_field_input";
 
@@ -103,15 +111,38 @@ export async function runPasswordFieldInput(
         maxWorkers,
         maxWorkerMemory,
       },
-      (workerExec) =>
-        useBrowser(async (browser) => {
-          const page = await browser.newPage();
-          await installAnalysis(page, { workerExec });
-          return bomb(
-            () => inputPasswordField(page, domainName, signupPageUrl),
-            DEFAULT_ANALYSIS_TIMEOUT_MS
-          );
-        })
+      async (workerExec) => {
+        const runAnalysis = (passwordList: string[]) =>
+          useBrowser(async (browser) => {
+            const page = await browser.newPage();
+            await installAnalysis(page, { workerExec });
+            return bomb(
+              () =>
+                inputPasswordField(
+                  page,
+                  domainName,
+                  signupPageUrl,
+                  passwordList
+                ),
+              DEFAULT_ANALYSIS_TIMEOUT_MS
+            );
+          });
+
+        const preAnalysisResult = await runAnalysis([
+          SAMPLE_WEAK_PASSWORD,
+          SAMPLE_STRONG_PASSWORD,
+        ]);
+        const psmDetected = detectPSM(preAnalysisResult);
+        if (!psmDetected) {
+          return preAnalysisResult;
+        }
+        const analysisResult = await runAnalysis([
+          ...VARIATING_LENGTH_NO_PATTERN_PASSWORDS,
+          ...VARIATING_LENGTH_WITH_PATTERN_PASSWORDS,
+          ...VARIATING_COMPLEXITY_PASSWORDS,
+        ]);
+        return [...preAnalysisResult, ...analysisResult];
+      }
     )
   );
   const endTime = currentTime();
