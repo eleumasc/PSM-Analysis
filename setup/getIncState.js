@@ -2,6 +2,9 @@
 
 const Map = require("./safe/Map");
 const getXPath = require("./getXPath");
+const murmurHash3 = require("./util/murmurHash3js");
+
+const CHILDLIST_INC_STATE_VALUE_MAX_LENGTH = 16 * 1024;
 
 function getIncState(mutationRecords) {
   const stateMap = new Map();
@@ -40,8 +43,13 @@ function getIncStateValue(mutationRecord) {
     }
     case "characterData":
       return target.textContent;
-    case "childList":
-      return target.innerHTML;
+    case "childList": {
+      const value = target.innerHTML;
+      if (value.length >= CHILDLIST_INC_STATE_VALUE_MAX_LENGTH) {
+        return `Murmur3:${murmurHash3.x64.hash128(value)}`;
+      }
+      return value;
+    }
   }
 }
 
