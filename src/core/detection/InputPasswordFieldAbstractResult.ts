@@ -3,12 +3,21 @@ import assert from "assert";
 import canParseJSON from "../../util/canParseJSON";
 import mayBeScore from "./mayBeScore";
 import {
-  AnalysisTrace,
+  Trace,
   FunctionCall,
   IncState,
+  InputPasswordFieldResult,
   SourceLoc,
   XHRRequest,
-} from "../PasswordFieldInputResult";
+} from "../InputPasswordFieldResult";
+
+export type InputPasswordFieldAbstractResult =
+  InputPasswordFieldAbstractDetail[];
+
+export type InputPasswordFieldAbstractDetail = {
+  password: string;
+  abstractTraces: AbstractTrace[];
+};
 
 export type AbstractTrace = {
   abstractCalls: AbstractCall[];
@@ -40,10 +49,36 @@ export type AbstractCallType =
   | FunctionCallAbstractCallType
   | XHRRequestAbstractCallType;
 
-export function getAbstractTraceFromAnalysisTrace(
-  analysisTrace: AnalysisTrace
-): AbstractTrace {
-  const { functionCalls, xhrRequests, incState } = analysisTrace;
+export function getIPFAbstractResultFromIPFResult(
+  ipfResult: InputPasswordFieldResult
+): InputPasswordFieldAbstractResult {
+  return ipfResult.map(
+    ({ password, fillTrace, blurTrace }): InputPasswordFieldAbstractDetail => {
+      const abstractTraces = [fillTrace, blurTrace]
+        .map((trace): Trace => {
+          const { functionCalls, xhrRequests, incState } = trace;
+          return {
+            functionCalls,
+            xhrRequests: xhrRequests.filter((xhrRequest) => {
+              const { url, body } = xhrRequest;
+              return (
+                url.includes(encodeURIComponent(password)) ||
+                body.includes(password) ||
+                body.includes(JSON.stringify(password)) ||
+                body.includes(encodeURIComponent(password))
+              );
+            }),
+            incState,
+          };
+        })
+        .map((trace): AbstractTrace => getAbstractTraceFromTrace(trace));
+      return { password, abstractTraces };
+    }
+  );
+}
+
+function getAbstractTraceFromTrace(trace: Trace): AbstractTrace {
+  const { functionCalls, xhrRequests, incState } = trace;
   return {
     abstractCalls: filterDistinctAndConsistentAbstractCalls([
       ...functionCalls.flatMap((functionCall) =>

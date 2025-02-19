@@ -105,11 +105,11 @@ async function main() {
     )
 
     .command(
-      "measure <pfi-analysis-id>",
+      "measure <ipf-analysis-id>",
       "Start measurement",
       (yargs) =>
         yargs
-          .positional("pfi-analysis-id", {
+          .positional("ipf-analysis-id", {
             type: "number",
             describe:
               "ID of the password input field analysis to start measurement from",

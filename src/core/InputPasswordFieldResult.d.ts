@@ -1,12 +1,12 @@
-export type PasswordFieldInputResult = PasswordFieldInputResultRecord[];
+export type InputPasswordFieldResult = InputPasswordFieldDetail[];
 
-export type PasswordFieldInputResultRecord = {
+export type InputPasswordFieldDetail = {
   password: string;
-  fillTrace: AnalysisTrace;
-  blurTrace: AnalysisTrace;
+  fillTrace: Trace;
+  blurTrace: Trace;
 };
 
-export type AnalysisTrace = {
+export type Trace = {
   functionCalls: FunctionCall[];
   xhrRequests: XHRRequest[];
   incState: IncState;

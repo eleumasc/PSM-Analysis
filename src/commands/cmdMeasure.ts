@@ -1,24 +1,26 @@
+import _ from "lodash";
 import ConfusionMatrix from "../util/ConfusionMatrix";
 import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
 import { Completion, isFailure } from "../util/Completion";
 import { detectPSM } from "../core/detection/detectPSM";
+import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
+import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { PASSWORD_FIELD_INPUT_ANALYSIS_TYPE } from "./cmdPasswordFieldInput";
-import { PasswordFieldInputResult } from "../core/PasswordFieldInputResult";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
 
 export default function cmdMeasure(args: {
-  pfiAnalysisId: number;
+  ipfAnalysisId: number;
   dbFilepath: string | undefined;
 }) {
   const dao = DataAccessObject.open(args.dbFilepath);
 
-  const { pfiAnalysisId } = args;
-  const pfiAnalysisModel = dao.getAnalysis(pfiAnalysisId);
-  checkAnalysisType(pfiAnalysisModel, PASSWORD_FIELD_INPUT_ANALYSIS_TYPE);
-  const spsAnalysisId = pfiAnalysisModel.parentAnalysisId!;
+  const { ipfAnalysisId } = args;
+  const ipfAnalysisModel = dao.getAnalysis(ipfAnalysisId);
+  checkAnalysisType(ipfAnalysisModel, PASSWORD_FIELD_INPUT_ANALYSIS_TYPE);
+  const spsAnalysisId = ipfAnalysisModel.parentAnalysisId!;
   const spsAnalysisModel = dao.getAnalysis(spsAnalysisId);
   checkAnalysisType(spsAnalysisModel, SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE);
 
@@ -41,38 +43,67 @@ export default function cmdMeasure(args: {
     }
   }
 
-  let pfiDomainsCount = 0;
+  let ipfDomainsCount = 0;
   const psmDomainNames: string[] = [];
   const psmConfusionMatrix = new ConfusionMatrix<string>();
+  const scoreTables = [];
 
-  for (const domainModel of dao.getDoneDomains(pfiAnalysisId)) {
-    const pfiCompletion = dao.getAnalysisResult(
-      pfiAnalysisId,
+  for (const domainModel of dao.getDoneDomains(ipfAnalysisId)) {
+    const ipfCompletion = dao.getAnalysisResult(
+      ipfAnalysisId,
       domainModel.id
-    ) as Completion<PasswordFieldInputResult>;
-    if (isFailure(pfiCompletion)) continue;
-    const { value: pfiResult } = pfiCompletion;
-    if (!pfiResult) continue; // TODO: fix status is success but value is undefined (serialization issue?)
+    ) as Completion<InputPasswordFieldResult>;
+    if (isFailure(ipfCompletion)) continue;
+    const { value: ipfResult } = ipfCompletion;
+    if (!ipfResult) continue; // TODO: fix status is success but value is undefined (serialization issue?)
 
-    pfiDomainsCount += 1;
+    ipfDomainsCount += 1;
 
-    const psmDetected = detectPSM(pfiResult);
+    const ipfAbstractResult = getIPFAbstractResultFromIPFResult(ipfResult);
+
+    const psmDetected = detectPSM(ipfAbstractResult);
     if (psmDetected) {
       psmDomainNames.push(domainModel.name);
     }
 
     if (TRUTH.has(domainModel.name)) {
       const truth = TRUTH.get(domainModel.name)!;
-      psmConfusionMatrix.addValue(domainModel.name, psmDetected, truth[0]);
+      psmConfusionMatrix.addValue(
+        domainModel.name,
+        Boolean(psmDetected),
+        truth[0]
+      );
     }
+
+    if (!psmDetected) continue;
+
+    const { scoreTypes } = psmDetected;
+    const scoreTable = ipfAbstractResult.map(({ password, abstractTraces }) => {
+      const abstractCalls = abstractTraces.flatMap(
+        ({ abstractCalls }) => abstractCalls
+      );
+      return {
+        domain: domainModel.name,
+        password,
+        scores: scoreTypes.map((type) => ({
+          type,
+          value:
+            abstractCalls.find((abstractCall) =>
+              _.isEqual(abstractCall.type, type)
+            )?.value ?? null,
+        })),
+      };
+    });
+    scoreTables.push(scoreTable);
   }
 
   const report = {
     accessibleDomainsCount,
     signupPagesCount,
-    pfiDomainsCount,
+    ipfDomainsCount,
     psmDomainNames,
     psmConfusionMatrix: psmConfusionMatrix.get(),
+    scoreTables,
   };
 
   writeFileSync("output.json", JSON.stringify(report, undefined, 2));

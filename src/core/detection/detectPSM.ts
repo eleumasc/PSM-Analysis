@@ -1,55 +1,76 @@
 import _ from "lodash";
-import { findFunctionalStateKeys } from "./InputStateRelation";
-import { getCandidatesFromAbstractTraces } from "./Candidate";
+import combinations from "../../util/combinations";
+import { getScoreCandidatesFromPFIAbstractResult } from "./ScoreCandidate";
 import {
-  AbstractTrace,
-  getAbstractTraceFromAnalysisTrace,
-} from "./AbstractTrace";
-import {
-  AnalysisTrace,
-  PasswordFieldInputResult,
-} from "../PasswordFieldInputResult";
+  AbstractCallType,
+  InputPasswordFieldAbstractResult,
+} from "./InputPasswordFieldAbstractResult";
 
-export function detectPSM(pfiResult: PasswordFieldInputResult): boolean {
-  const traces = pfiResult.flatMap(({ password, fillTrace, blurTrace }) =>
-    [fillTrace, blurTrace]
-      .map((analysisTrace): AnalysisTrace => {
-        const { functionCalls, xhrRequests, incState } = analysisTrace;
-        return {
-          functionCalls,
-          xhrRequests: xhrRequests.filter((xhrRequest) => {
-            const { url, body } = xhrRequest;
-            return (
-              url.includes(encodeURIComponent(password)) ||
-              body.includes(password) ||
-              body.includes(JSON.stringify(password)) ||
-              body.includes(encodeURIComponent(password))
-            );
-          }),
-          incState,
-        };
-      })
-      .map(
-        (analysisTrace): AbstractTrace =>
-          getAbstractTraceFromAnalysisTrace(analysisTrace)
-      )
+export type PSMDetail = {
+  scoreTypes: AbstractCallType[];
+};
+
+export function detectPSM(
+  ipfAbstractResult: InputPasswordFieldAbstractResult
+): PSMDetail | null {
+  const abstractTraces = ipfAbstractResult.flatMap(
+    ({ abstractTraces }) => abstractTraces
   );
 
-  const candidates = getCandidatesFromAbstractTraces(traces);
-  const scoreCallTypes = candidates
-    .filter(({ relation }) => findFunctionalStateKeys(relation).length > 0)
+  const scoreCandidates =
+    getScoreCandidatesFromPFIAbstractResult(ipfAbstractResult);
+
+  const scoreTypes = scoreCandidates
+    .filter(
+      ({ occurrences }) =>
+        // at least 2/3 of values returned by the function are not null
+        occurrences.filter((x) => x.value !== null).length /
+          occurrences.length >=
+        0.66
+    )
+    .filter(({ type, occurrences: allOccurrences }) => {
+      const occurrences = allOccurrences.filter((x) => x.value !== null);
+
+      const propertyNameMatchesKnownPattern = () =>
+        type.propertyName?.match(/score|strength|level/i);
+
+      const constantFunction = () =>
+        occurrences.every((x) => x.value === occurrences[0].value);
+
+      const binaryFunction = () =>
+        occurrences.every((x) => x.value === 0 || x.value === 1);
+
+      const lengthFunction = () =>
+        occurrences.every((x) => x.value === x.password.length);
+
+      const characterCountFunction = () =>
+        [...combinations([/[A-Z]/g, /[a-z]/g, /[0-9]/g, /[^A-Za-z0-9]/g])].some(
+          (comb) =>
+            occurrences.every(
+              (x) =>
+                x.value ===
+                _.sumBy(comb, (re) => [...x.password.matchAll(re)].length)
+            )
+        );
+
+      return (
+        propertyNameMatchesKnownPattern() ||
+        !(
+          constantFunction() ||
+          binaryFunction() ||
+          lengthFunction() ||
+          characterCountFunction()
+        )
+      );
+    })
     .map(({ type }) => type);
 
-  const result = traces.some(
-    (trace) =>
-      trace.abstractCalls.length > 0 &&
-      trace.incState.length > 0 &&
-      scoreCallTypes.length > 0
+  const psmDetected = abstractTraces.some(
+    (abstractTrace) =>
+      abstractTrace.abstractCalls.length > 0 &&
+      abstractTrace.incState.length > 0 &&
+      scoreTypes.length > 0
   );
 
-  // if (result) {
-  //   console.log(scoreCallTypes);
-  // }
-
-  return result;
+  return psmDetected ? { scoreTypes } : null;
 }

@@ -1,10 +1,7 @@
 import locatePasswordField from "./locatePasswordField";
+import { InputPasswordFieldResult, Trace } from "./InputPasswordFieldResult";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
-import {
-  AnalysisTrace,
-  PasswordFieldInputResult,
-} from "./PasswordFieldInputResult";
 
 const CAPTURE_TIMEOUT_MS: number = 5000;
 const CLEAR_TIMEOUT_MS: number = 1000;
@@ -14,7 +11,7 @@ export default async function inputPasswordField(
   domainName: string,
   signupPageUrl: string,
   passwordList: string[]
-): Promise<PasswordFieldInputResult> {
+): Promise<InputPasswordFieldResult> {
   const {
     passwordField,
     signupForm: { frame },
@@ -22,10 +19,10 @@ export default async function inputPasswordField(
 
   const capture = (password: string): Promise<void> =>
     frame.evaluate(`\$\$ADVICE.capture(${JSON.stringify(password)})`);
-  const captureEnd = (): Promise<AnalysisTrace> =>
+  const captureEnd = (): Promise<Trace> =>
     frame.evaluate("$$ADVICE.captureEnd()");
 
-  const result: PasswordFieldInputResult = [];
+  const result: InputPasswordFieldResult = [];
   let dirty = false;
 
   await passwordField.focus();

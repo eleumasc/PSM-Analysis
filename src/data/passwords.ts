@@ -24,3 +24,38 @@ export const VARIATING_COMPLEXITY_PASSWORDS = [
   "tXGc%aNQ!*+iI?-u",
   "zOWGmDacFUEp53A4",
 ];
+
+/**
+ * - Random (neither dictionary words nor known patterns)
+ * - Increasing entropy
+ * - Increasing complexity
+ *
+ * Len8
+ * - lowercase (37.6)
+ * - + uppercase (45.6)
+ * - + digit (47.63)
+ * - + symbol (52.44)
+ * Len12
+ * - lowercase (56.4)
+ * - + uppercase (68.4)
+ * - + digit (71.45)
+ * - + symbol (78.66)
+ * Len16
+ * - lowercase (75.2) [SKIP: entropy is lower than Len12 + symbol]
+ * - + uppercase (91.2)
+ * - + digit (95.27)
+ * - + symbol (104.87)
+ */
+export const ORDERED_PASSWORDS = [
+  "zxmeiuta",
+  "pozgdynA",
+  "dkcviqA1",
+  "kjaudA1!",
+  "xzkqjugolrdm",
+  "yjhnfdluxmeA",
+  "elnrbyidtaA1",
+  "gibuazknxA1!",
+  "swztdclgvmfkuoqA",
+  "eoxahvqktbuyfmA1",
+  "juanbxzdvhrlpA1!",
+];
