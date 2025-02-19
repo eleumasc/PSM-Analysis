@@ -7,12 +7,15 @@ import processDomainTaskQueue from "../util/processDomainTaskQueue";
 import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
-import { DEFAULT_ANALYSIS_TIMEOUT_MS } from "../core/defaults";
-import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
-import { PASSWORDS } from "../data/passwords";
+import { mayDetectPSM } from "../core/detection/mayDetectPSM";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
+import {
+  PASSWORDS,
+  SAMPLE_STRONG_PASSWORD,
+  SAMPLE_WEAK_PASSWORD,
+} from "../data/passwords";
 import {
   Completion,
   Failure,
@@ -21,6 +24,8 @@ import {
 } from "../util/Completion";
 
 export const PASSWORD_FIELD_INPUT_ANALYSIS_TYPE = "password_field_input";
+
+const ANALYSIS_TIMEOUT_MS: number = 10 * 60 * 1000; // 10 minutes
 
 export default async function cmdPasswordFieldInput(
   args: (
@@ -119,11 +124,19 @@ export async function runPasswordFieldInput(
                   signupPageUrl,
                   passwordList
                 ),
-              DEFAULT_ANALYSIS_TIMEOUT_MS
+              ANALYSIS_TIMEOUT_MS
             );
           });
 
-        return runAnalysis(PASSWORDS);
+        const ipfResultPre = await runAnalysis([
+          SAMPLE_WEAK_PASSWORD,
+          SAMPLE_STRONG_PASSWORD,
+        ]);
+        if (!mayDetectPSM(getIPFAbstractResultFromIPFResult(ipfResultPre))) {
+          return ipfResultPre;
+        }
+        const ipfResult = await runAnalysis(PASSWORDS);
+        return [...ipfResultPre, ...ipfResult];
       }
     )
   );

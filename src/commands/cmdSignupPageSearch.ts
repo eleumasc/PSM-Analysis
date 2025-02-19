@@ -4,10 +4,11 @@ import processDomainTaskQueue from "../util/processDomainTaskQueue";
 import searchSignupPage from "../core/searchSignupPage";
 import useBrowser from "../util/useBrowser";
 import { bomb } from "../util/timeout";
-import { DEFAULT_ANALYSIS_TIMEOUT_MS } from "../core/defaults";
 import { toCompletion } from "../util/Completion";
 
 export const SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE = "signup_page_search";
+
+const ANALYSIS_TIMEOUT_MS: number = 5 * 60 * 1000; // 5 minutes
 
 export default async function cmdSignupPageSearch(
   args: (
@@ -64,7 +65,7 @@ export async function runSignupPageSearch(
       const page = await browser.newPage();
       return bomb(
         () => searchSignupPage(page, domainName),
-        DEFAULT_ANALYSIS_TIMEOUT_MS
+        ANALYSIS_TIMEOUT_MS
       );
     })
   );
