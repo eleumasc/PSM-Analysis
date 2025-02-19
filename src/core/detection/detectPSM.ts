@@ -28,9 +28,6 @@ export function detectPSM(
       const isConstantFunction = () =>
         occurrences.every((x) => x.value === occurrences[0].value);
 
-      const isBinaryFunction = () =>
-        occurrences.every((x) => x.value === 0 || x.value === 1);
-
       const isLengthFunction = () =>
         occurrences.every((x) => x.value === x.password.length);
 
@@ -48,7 +45,6 @@ export function detectPSM(
         doesPropertyNameMatchesKnownPattern() ||
         !(
           isConstantFunction() ||
-          isBinaryFunction() ||
           isLengthFunction() ||
           isCharacterCountFunction()
         )
