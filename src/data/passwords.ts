@@ -3,7 +3,7 @@ export const SAMPLE_STRONG_PASSWORD: string = "Hg%4cvUz2^#{<~[?!Ch@";
 
 /**
  * - First slice exception: known patterns, increasing entropy and length, fixed complexity
- * - Bruteforce required: neither dictionary words nor known patterns
+ * - Neither dictionary words nor known patterns (guessability depends exclusively on entropy, bruteforce required)
  * - Increasing entropy and length in every slice
  * - Increasing complexity
  */
