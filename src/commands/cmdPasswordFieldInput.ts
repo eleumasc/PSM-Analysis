@@ -10,6 +10,7 @@ import { bomb } from "../util/timeout";
 import { DEFAULT_ANALYSIS_TIMEOUT_MS } from "../core/defaults";
 import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
+import { PASSWORDS } from "../data/passwords";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
 import {
@@ -18,14 +19,6 @@ import {
   isFailure,
   toCompletion,
 } from "../util/Completion";
-import {
-  ORDERED_PASSWORDS,
-  SAMPLE_STRONG_PASSWORD,
-  SAMPLE_WEAK_PASSWORD,
-  VARIATING_COMPLEXITY_PASSWORDS,
-  VARIATING_LENGTH_NO_PATTERN_PASSWORDS,
-  VARIATING_LENGTH_WITH_PATTERN_PASSWORDS,
-} from "../data/passwords";
 
 export const PASSWORD_FIELD_INPUT_ANALYSIS_TYPE = "password_field_input";
 
@@ -130,24 +123,7 @@ export async function runPasswordFieldInput(
             );
           });
 
-        return runAnalysis(ORDERED_PASSWORDS);
-
-        // const ipfResultPre = await runAnalysis([
-        //   SAMPLE_WEAK_PASSWORD,
-        //   SAMPLE_STRONG_PASSWORD,
-        // ]);
-        // const psmDetectedPre = detectPSM(
-        //   getIPFAbstractResultFromIPFResult(ipfResultPre)
-        // );
-        // if (!Boolean(psmDetectedPre)) {
-        //   return ipfResultPre;
-        // }
-        // const ipfResult = await runAnalysis([
-        //   ...VARIATING_LENGTH_NO_PATTERN_PASSWORDS,
-        //   ...VARIATING_LENGTH_WITH_PATTERN_PASSWORDS,
-        //   ...VARIATING_COMPLEXITY_PASSWORDS,
-        // ]);
-        // return [...ipfResultPre, ...ipfResult];
+        return runAnalysis(PASSWORDS);
       }
     )
   );
