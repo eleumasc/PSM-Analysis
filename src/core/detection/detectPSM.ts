@@ -28,10 +28,7 @@ export function detectPSM(
     getScoreCandidatesFromPFIAbstractResult(ipfAbstractResult);
 
   const scoreTypes = scoreCandidates
-    .filter(({ type, occurrences }) => {
-      const doesPropertyNameMatchesKnownPattern = () =>
-        type.propertyName?.match(/score|strength|level/i);
-
+    .filter(({ occurrences }) => {
       const isConstantFunction = () =>
         occurrences.every((occ) => occ.value === occurrences[0].value);
 
@@ -47,13 +44,10 @@ export function detectPSM(
           )
         );
 
-      return (
-        doesPropertyNameMatchesKnownPattern() ||
-        !(
-          isConstantFunction() ||
-          isLengthFunction() ||
-          isCharacterCountFunction()
-        )
+      return !(
+        isConstantFunction() ||
+        isLengthFunction() ||
+        isCharacterCountFunction()
       );
     })
     .filter(({ occurrences }) =>
