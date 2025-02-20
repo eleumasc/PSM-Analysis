@@ -78,23 +78,24 @@ export default function cmdMeasure(args: {
     if (!psmDetected) continue;
 
     const { scoreTypes } = psmDetected;
-    const scoreTable = ipfAbstractResult.map(({ password, abstractTraces }) => {
-      const abstractCalls = abstractTraces.flatMap(
-        ({ abstractCalls }) => abstractCalls
-      );
-      return {
-        domain: domainModel.name,
-        password,
-        scores: scoreTypes.map((type) => ({
-          type,
-          value:
-            abstractCalls.find((abstractCall) =>
-              _.isEqual(abstractCall.type, type)
-            )?.value ?? null,
-        })),
-      };
+    scoreTables.push({
+      domain: domainModel.name,
+      scoreTable: ipfAbstractResult.map(({ password, abstractTraces }) => {
+        const abstractCalls = abstractTraces.flatMap(
+          ({ abstractCalls }) => abstractCalls
+        );
+        return {
+          password,
+          scores: scoreTypes.map((type) => ({
+            type,
+            value:
+              abstractCalls.find((abstractCall) =>
+                _.isEqual(abstractCall.type, type)
+              )?.value ?? null,
+          })),
+        };
+      }),
     });
-    scoreTables.push(scoreTable);
   }
 
   const report = {
