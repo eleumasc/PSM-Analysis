@@ -29,7 +29,7 @@ export function getScoreCandidatesFromPFIAbstractResult(
         let candidate = candidateMap.get(key);
         if (!candidate) {
           candidate = {
-            type: type,
+            type,
             occurrences: [],
           };
           candidateMap.set(key, candidate);

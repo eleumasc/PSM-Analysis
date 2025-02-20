@@ -12,9 +12,9 @@ import { mayDetectPSM } from "../core/detection/mayDetectPSM";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
 import {
-  PASSWORDS,
   SAMPLE_STRONG_PASSWORD,
   SAMPLE_WEAK_PASSWORD,
+  getSelectedPasswords,
 } from "../data/passwords";
 import {
   Completion,
@@ -135,7 +135,7 @@ export async function runPasswordFieldInput(
         if (!mayDetectPSM(getIPFAbstractResultFromIPFResult(ipfResultPre))) {
           return ipfResultPre;
         }
-        const ipfResult = await runAnalysis(PASSWORDS);
+        const ipfResult = await runAnalysis(getSelectedPasswords());
         return [...ipfResultPre, ...ipfResult];
       }
     )

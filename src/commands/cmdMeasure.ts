@@ -80,6 +80,7 @@ export default function cmdMeasure(args: {
     const { scoreTypes } = psmDetected;
     scoreTables.push({
       domain: domainModel.name,
+      scoreTypes,
       scoreTable: ipfAbstractResult.map(({ password, abstractTraces }) => {
         const abstractCalls = abstractTraces.flatMap(
           ({ abstractCalls }) => abstractCalls
