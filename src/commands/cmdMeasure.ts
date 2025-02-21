@@ -87,13 +87,12 @@ export default function cmdMeasure(args: {
         );
         return {
           password,
-          scores: scoreTypes.map((type) => ({
-            type,
-            value:
+          scores: scoreTypes.map(
+            (type) =>
               abstractCalls.find((abstractCall) =>
                 _.isEqual(abstractCall.type, type)
-              )?.value ?? null,
-          })),
+              )?.value ?? null
+          ),
         };
       }),
     });

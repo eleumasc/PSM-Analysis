@@ -1,6 +1,7 @@
 import _ from "lodash";
 import combinations from "../../util/combinations";
 import { getScoreCandidatesFromPFIAbstractResult } from "./ScoreCandidate";
+import { isAscending, isConstant, isDescending } from "../../util/sorting";
 import {
   reDigit,
   reLower,
@@ -29,8 +30,9 @@ export function detectPSM(
 
   const scoreTypes = scoreCandidates
     .filter(({ occurrences }) => {
-      const isConstantFunction = () =>
-        occurrences.every((occ) => occ.value === occurrences[0].value);
+      const values = occurrences.map(({ value }) => value);
+
+      const isConstantFunction = () => isConstant(values);
 
       const isLengthFunction = () =>
         occurrences.every((occ) => occ.value === occ.password.length);
@@ -51,17 +53,17 @@ export function detectPSM(
       );
     })
     .filter(({ occurrences }) =>
-      SELECTED_DETAILED_PASSWORD_GROUPS.every((group) =>
-        group
+      SELECTED_DETAILED_PASSWORD_GROUPS.every((group) => {
+        const values = group
           .flatMap((detailedPassword) => {
             const found = occurrences.find(
               (occ) => occ.password === detailedPassword.password
             );
             return found ? [found] : [];
           })
-          .map(({ value }) => value)
-          .every((value, i, a) => i === 0 || a[i - 1] <= value)
-      )
+          .map(({ value }) => value);
+        return isAscending(values) || isDescending(values);
+      })
     )
     .map(({ type }) => type);
 
