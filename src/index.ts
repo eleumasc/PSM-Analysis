@@ -1,6 +1,6 @@
+import cmdDetectPSM from "./commands/cmdDetectPSM";
 import cmdInputPasswordField from "./commands/cmdInputPasswordField";
 import cmdLoadDomainList from "./commands/cmdLoadDomainList";
-import cmdMeasure from "./commands/cmdMeasure";
 import cmdSearchSignupPage from "./commands/cmdSearchSignupPage";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -105,20 +105,20 @@ async function main() {
     )
 
     .command(
-      "measure <ipf-analysis-id>",
-      "Start measurement",
+      "detect-psm <ipf-analysis-id>",
+      "Detect PSM from an input password field analysis",
       (yargs) =>
         yargs
           .positional("ipf-analysis-id", {
             type: "number",
             describe:
-              "ID of the password input field analysis to start measurement from",
+              "ID of the password input field analysis to detect PSM from",
             demandOption: true,
           })
           .option("db-filepath", {
             type: "string",
           }),
-      (args) => cmdMeasure(args)
+      (args) => cmdDetectPSM(args)
     )
 
     .demandCommand(1, "You must provide a valid command.")

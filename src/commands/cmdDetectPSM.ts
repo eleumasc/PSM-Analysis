@@ -11,7 +11,7 @@ import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
 
-export default function cmdMeasure(args: {
+export default function cmdDetectPSM(args: {
   ipfAnalysisId: number;
   dbFilepath: string | undefined;
 }) {
