@@ -7,6 +7,7 @@ const apply = Reflect.apply;
 const EventTarget_proto_addEventListener =
   EventTarget.prototype.addEventListener;
 const Request = global.Request;
+const JSON_stringify = JSON.stringify;
 
 function wrapNetworkSinks(callback, callbackResponse) {
   const XMLHttpRequest_proto = XMLHttpRequest.prototype;
@@ -29,7 +30,17 @@ function wrapNetworkSinks(callback, callbackResponse) {
           const body = xhrBodyMap.get(this);
 
           const status = this.status;
-          const responseText = this.responseText;
+          const responseText = (() => {
+            switch (this.responseType) {
+              case "":
+              case "text":
+                return this.responseText;
+              case "json":
+                return JSON_stringify(this.response);
+              default:
+                return "";
+            }
+          })();
 
           callbackResponse(
             {
