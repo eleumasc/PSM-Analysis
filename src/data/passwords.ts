@@ -77,3 +77,5 @@ export function getSelectedPasswords(): string[] {
     group.map(({ password }) => password)
   );
 }
+
+export { ROCKYOU2021_PASSWORDS } from "./rockyou2021";

@@ -1,6 +1,7 @@
 import cmdDetectPSM from "./commands/cmdDetectPSM";
 import cmdInputPasswordField from "./commands/cmdInputPasswordField";
 import cmdLoadDomainList from "./commands/cmdLoadDomainList";
+import cmdQueryPSM from "./commands/cmdQueryPSM";
 import cmdSearchSignupPage from "./commands/cmdSearchSignupPage";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -72,9 +73,6 @@ async function main() {
             type: "number",
             default: 1,
           })
-          .option("max-instrument-worker-memory", {
-            type: "number",
-          })
           .option("test-domain-name", {
             type: "string",
           }),
@@ -97,9 +95,6 @@ async function main() {
           .option("max-instrument-workers", {
             type: "number",
             default: 1,
-          })
-          .option("max-instrument-worker-memory", {
-            type: "number",
           }),
       (args) => cmdInputPasswordField({ action: "resume", ...args })
     )
@@ -119,6 +114,50 @@ async function main() {
             type: "string",
           }),
       (args) => cmdDetectPSM(args)
+    )
+
+    .command(
+      "query-psm <parent-analysis-id>",
+      "Create a new query PSM analysis",
+      (yargs) =>
+        yargs
+          .positional("parent-analysis-id", {
+            describe: "ID of the input password field analysis to search",
+            type: "number",
+            demandOption: true,
+          })
+          .option("max-tasks", {
+            type: "number",
+            default: 1,
+          })
+          .option("max-instrument-workers", {
+            type: "number",
+            default: 1,
+          })
+          .option("test-domain-name", {
+            type: "string",
+          }),
+      (args) => cmdQueryPSM({ action: "create", ...args })
+    )
+    .command(
+      "query-psm:resume <analysis-id>",
+      "Resume an existing query PSM analysis",
+      (yargs) =>
+        yargs
+          .positional("analysis-id", {
+            describe: "ID of the analysis to resume",
+            type: "number",
+            demandOption: true,
+          })
+          .option("max-tasks", {
+            type: "number",
+            default: 1,
+          })
+          .option("max-instrument-workers", {
+            type: "number",
+            default: 1,
+          }),
+      (args) => cmdQueryPSM({ action: "resume", ...args })
     )
 
     .demandCommand(1, "You must provide a valid command.")
