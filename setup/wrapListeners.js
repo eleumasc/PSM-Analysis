@@ -77,19 +77,36 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
     return typeof opts === "object" ? opts.capture : opts;
   }
 
+  function isListenerCallback(value) {
+    return (
+      typeof value === "function" ||
+      (value &&
+        typeof value === "object" &&
+        typeof value.handleEvent === "function")
+    );
+  }
+
   const EventTarget_proto = EventTarget.prototype;
   const EventTarget_proto_addEventListener = EventTarget_proto.addEventListener;
   const EventTarget_proto_removeEventListener =
     EventTarget_proto.removeEventListener;
 
   EventTarget_proto.addEventListener = function (type, listener, opts) {
-    if (typeof listener !== "function") {
+    if (!isListenerCallback(listener)) {
       apply(EventTarget_proto_addEventListener, this, arguments);
       return;
     }
     type = String(type);
     opts = normalizeOpts(opts);
-    const listenerWrapper = buildListenerWrapper(this, type, listener);
+    const listenerWrapper = buildListenerWrapper(
+      this,
+      type,
+      typeof listener === "function"
+        ? listener
+        : function () {
+            return apply(listener.handleEvent, listener, arguments);
+          }
+    );
     const listenerWrapperBox = getOrCreateListenerWrapperBox(
       this,
       type,
@@ -113,7 +130,7 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
   };
 
   EventTarget_proto.removeEventListener = function (type, listener, opts) {
-    if (typeof listener !== "function") {
+    if (!isListenerCallback(listener)) {
       apply(EventTarget_proto_removeEventListener, this, arguments);
       return;
     }
