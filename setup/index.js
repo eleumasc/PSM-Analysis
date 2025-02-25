@@ -1,7 +1,7 @@
 "use strict";
 
 const Analysis = require("./Analysis");
-const CallFlowTracker = require("./CallFlowTracker");
+const JobTracker = require("./JobTracker");
 const preventIntegrityCheck = require("./preventIntegrityCheck");
 const Set = require("./safe/Set");
 const WeakMap = require("./safe/WeakMap");
@@ -49,43 +49,49 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-const relevantFlows = new Set();
+const relevantJobs = new Set();
+let isRunningJobRelevant = false;
 
-const callFlowTracker = new CallFlowTracker({
-  flowStart(flowId) {
-    if (relevantFlows.has(flowId)) {
+const jobTracker = new JobTracker({
+  jobStart(_jobId, parentJobId) {
+    if (parentJobId && relevantJobs.has(parentJobId)) {
+      relevantJobs.add(jobTracker.jobId);
+      isRunningJobRelevant = true;
       mutObs?.takeRecords(); // reset the mutation queue
-      analysis.setCapturing(true);
     }
   },
 
-  flowEnd(flowId) {
-    if (relevantFlows.has(flowId)) {
+  jobEnd(_jobId) {
+    if (isRunningJobRelevant) {
       const mutationList = mutObs?.takeRecords();
       if (mutationList) {
         for (const mutationRecord of mutationList) {
           analysis.addMutation(mutationRecord);
         }
       }
+      isRunningJobRelevant = false;
     }
-    analysis.setCapturing(false);
   },
 });
 
 let nextCallId = 1;
 
 global["$$ADVICE"] = {
-  __proto__: callFlowTracker.createAdvice(),
+  __proto__: jobTracker.createAdvice(),
 
   enter(sourceLoc, args) {
     super.enter();
     const callId = nextCallId++;
-    analysis.addFunctionEnter(callId, sourceLoc, args);
+    if (isRunningJobRelevant) {
+      analysis.addFunctionEnter(callId, sourceLoc, args);
+    }
     return callId;
   },
 
   leave(callId, ret, exc) {
-    analysis.addFunctionLeave(callId, ret, exc);
+    if (isRunningJobRelevant) {
+      analysis.addFunctionLeave(callId, ret, exc);
+    }
     super.leave();
   },
 
@@ -98,54 +104,52 @@ global["$$ADVICE"] = {
   },
 };
 
-const networkSinkFlowIdMap = new WeakMap();
+const networkSinkJobIdMap = new WeakMap();
 
 wrapNetworkSinks(
   function callback(request) {
-    networkSinkFlowIdMap.set(request, callFlowTracker.flowId);
+    networkSinkJobIdMap.set(request, jobTracker.jobId);
   },
   function callbackResponse(requestRecord, request) {
-    if (relevantFlows.has(networkSinkFlowIdMap.get(request))) {
+    if (relevantJobs.has(networkSinkJobIdMap.get(request))) {
       analysis.addXHRRequest(requestRecord);
     }
   }
 );
 
 wrapPostMessage(function callbackMeta() {
-  return { flowId: callFlowTracker.flowId };
+  return { jobId: jobTracker.jobId };
 });
 
 function isRelevantMessageEvent(e) {
-  return e.type === "message" && e.meta && relevantFlows.has(e.meta.flowId);
+  return e.type === "message" && e.meta && relevantJobs.has(e.meta.jobId);
 }
 
 wrapListeners(
   function buildListenerWrapper(_target, _type, listener) {
-    const setterFlowId = callFlowTracker.flowId;
+    const setterJobId = jobTracker.jobId;
     return function (e) {
+      jobTracker.enter(setterJobId);
       if (isPasswordFieldInputEvent(e) || isRelevantMessageEvent(e)) {
-        callFlowTracker.enter();
-        relevantFlows.add(callFlowTracker.flowId);
+        relevantJobs.add(jobTracker.jobId);
+        isRunningJobRelevant = true;
         mutObs?.takeRecords(); // reset the mutation queue
-        analysis.setCapturing(true);
-      } else {
-        callFlowTracker.defer(setterFlowId);
       }
       try {
         return apply(listener, this, arguments);
       } finally {
-        callFlowTracker.leave();
+        jobTracker.leave();
       }
     };
   },
   function buildCallbackWrapper(_target, callback) {
-    const setterFlowId = callFlowTracker.flowId;
+    const setterJobId = jobTracker.jobId;
     return function () {
-      callFlowTracker.defer(setterFlowId);
+      jobTracker.enter(setterJobId);
       try {
         return apply(callback, this, arguments);
       } finally {
-        callFlowTracker.leave();
+        jobTracker.leave();
       }
     };
   }

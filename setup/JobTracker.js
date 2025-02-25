@@ -1,26 +1,18 @@
 "use strict";
 
-class CallFlowTracker {
+class JobTracker {
   constructor(options) {
-    this.flowStart = options.flowStart.bind(null);
-    this.flowEnd = options.flowEnd.bind(null);
+    this.jobStart = options.jobStart.bind(null);
+    this.jobEnd = options.jobEnd.bind(null);
     this.height = 0;
-    this.flowId = undefined;
-    this.nextFlowId = 1;
+    this.jobId = undefined;
+    this.nextJobId = 1;
   }
 
-  enter() {
+  enter(parentJobId) {
     if (this.height === 0) {
-      this.flowId = this.nextFlowId++;
-      this.flowStart(this.flowId);
-    }
-    ++this.height;
-  }
-
-  defer(flowId) {
-    if (this.height === 0) {
-      this.flowId = flowId;
-      this.flowStart(this.flowId);
+      this.jobId = this.nextJobId++;
+      this.jobStart(this.jobId, parentJobId);
     }
     ++this.height;
   }
@@ -28,8 +20,8 @@ class CallFlowTracker {
   leave() {
     --this.height;
     if (this.height === 0) {
-      this.flowEnd(this.flowId);
-      this.flowId = undefined;
+      this.jobEnd(this.jobId);
+      this.jobId = undefined;
     } else if (this.height < 0) {
       debugger; // this should not happen
     }
@@ -75,18 +67,18 @@ class Advice {
 
   await(value) {
     const { tracker } = this;
-    const suspendedFlowId = tracker.flowId;
+    const suspendedJobId = tracker.jobId;
     tracker.leave();
     return (async () => {
       try {
         const awaitedValue = await value;
         return () => {
-          tracker.defer(suspendedFlowId);
+          tracker.enter(suspendedJobId);
           return awaitedValue;
         };
       } catch (e) {
         return () => {
-          tracker.defer(suspendedFlowId);
+          tracker.enter(suspendedJobId);
           throw e;
         };
       }
@@ -117,7 +109,7 @@ class ForAwaitOfIterator {
 
   next() {
     const { asyncIterator, tracker } = this;
-    const suspendedFlowId = tracker.flowId;
+    const suspendedJobId = tracker.jobId;
     tracker.leave();
     return (async () => {
       try {
@@ -125,7 +117,7 @@ class ForAwaitOfIterator {
         const awaitedValue = await value;
         return {
           get done() {
-            tracker.defer(suspendedFlowId);
+            tracker.enter(suspendedJobId);
             return done;
           },
           value: [awaitedValue],
@@ -133,7 +125,7 @@ class ForAwaitOfIterator {
       } catch (e) {
         return {
           get done() {
-            tracker.defer(suspendedFlowId);
+            tracker.enter(suspendedJobId);
             throw e;
           },
           value: undefined,
@@ -143,4 +135,4 @@ class ForAwaitOfIterator {
   }
 }
 
-module.exports = CallFlowTracker;
+module.exports = JobTracker;

@@ -9,7 +9,6 @@ const HTMLElement = global.HTMLElement;
 
 class Analysis {
   constructor() {
-    this.capturing = false;
     this.traceAcc = null;
   }
 
@@ -30,14 +29,9 @@ class Analysis {
     return buildTrace(traceAcc);
   }
 
-  setCapturing(enabled) {
-    this.capturing = enabled;
-  }
-
   addFunctionEnter(callId, sourceLoc, args) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    if (!this.capturing) return;
     traceAcc.functionCalls.set(callId, {
       sourceLoc,
       args: Array.from(args).map((arg) => toSerializableValue(arg, 1)),
@@ -47,7 +41,6 @@ class Analysis {
   addFunctionLeave(callId, ret, exc) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    if (!this.capturing) return;
     const functionCall = traceAcc.functionCalls.get(callId);
     if (!functionCall) return;
     if (exc) {
