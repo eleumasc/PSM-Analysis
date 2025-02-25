@@ -6,11 +6,11 @@ import useBrowser from "../util/useBrowser";
 import { bomb } from "../util/timeout";
 import { toCompletion } from "../util/Completion";
 
-export const SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE = "signup_page_search";
+export const SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE = "signup_page_search";
 
 const ANALYSIS_TIMEOUT_MS: number = 5 * 60 * 1000; // 5 minutes
 
-export default async function cmdSignupPageSearch(
+export default async function cmdSearchSignupPage(
   args: (
     | {
         action: "create";
@@ -29,13 +29,13 @@ export default async function cmdSignupPageSearch(
   const analysisId =
     args.action === "create"
       ? dao.createTopAnalysis(
-          SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE,
+          SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE,
           args.domainListId
         )
       : args.analysisId;
   const todoDomains = dao.getTodoDomains(
     analysisId,
-    SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE
+    SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE
   );
 
   console.log(`Analysis ID: ${analysisId}`);
@@ -44,13 +44,13 @@ export default async function cmdSignupPageSearch(
   await processDomainTaskQueue(
     todoDomains,
     { maxTasks: args.maxTasks },
-    (domainModel) => () => runSignupPageSearch(analysisId, domainModel)
+    (domainModel) => () => runSearchSignupPage(analysisId, domainModel)
   );
 
   process.exit(0);
 }
 
-export async function runSignupPageSearch(
+export async function runSearchSignupPage(
   analysisId: Rowid,
   domainModel: DomainModel
 ) {

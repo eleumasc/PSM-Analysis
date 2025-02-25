@@ -4,10 +4,10 @@ import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
 import { Completion, isFailure } from "../util/Completion";
 import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
+import { INPUT_PASSWORD_FIELD_ANALYSIS_TYPE } from "./cmdInputPasswordField";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
-import { PASSWORD_FIELD_INPUT_ANALYSIS_TYPE } from "./cmdPasswordFieldInput";
+import { SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE } from "./cmdSearchSignupPage";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
-import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
 
@@ -19,10 +19,10 @@ export default function cmdMeasure(args: {
 
   const { ipfAnalysisId } = args;
   const ipfAnalysisModel = dao.getAnalysis(ipfAnalysisId);
-  checkAnalysisType(ipfAnalysisModel, PASSWORD_FIELD_INPUT_ANALYSIS_TYPE);
+  checkAnalysisType(ipfAnalysisModel, INPUT_PASSWORD_FIELD_ANALYSIS_TYPE);
   const spsAnalysisId = ipfAnalysisModel.parentAnalysisId!;
   const spsAnalysisModel = dao.getAnalysis(spsAnalysisId);
-  checkAnalysisType(spsAnalysisModel, SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE);
+  checkAnalysisType(spsAnalysisModel, SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE);
 
   let accessibleDomainsCount = 0;
   let signupPagesCount = 0;

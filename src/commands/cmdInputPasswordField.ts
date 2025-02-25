@@ -9,8 +9,8 @@ import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
 import { mayDetectPSM } from "../core/detection/mayDetectPSM";
+import { SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE } from "./cmdSearchSignupPage";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
-import { SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE } from "./cmdSignupPageSearch";
 import {
   SAMPLE_STRONG_PASSWORD,
   SAMPLE_WEAK_PASSWORD,
@@ -23,11 +23,11 @@ import {
   toCompletion,
 } from "../util/Completion";
 
-export const PASSWORD_FIELD_INPUT_ANALYSIS_TYPE = "password_field_input";
+export const INPUT_PASSWORD_FIELD_ANALYSIS_TYPE = "password_field_input";
 
 const ANALYSIS_TIMEOUT_MS: number = 10 * 60 * 1000; // 10 minutes
 
-export default async function cmdPasswordFieldInput(
+export default async function cmdInputPasswordField(
   args: (
     | {
         action: "create";
@@ -49,14 +49,14 @@ export default async function cmdPasswordFieldInput(
   const analysisId =
     args.action === "create"
       ? dao.createSubAnalysis(
-          PASSWORD_FIELD_INPUT_ANALYSIS_TYPE,
+          INPUT_PASSWORD_FIELD_ANALYSIS_TYPE,
           args.parentAnalysisId,
-          SIGNUP_PAGE_SEARCH_ANALYSIS_TYPE
+          SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE
         )
       : args.analysisId;
   const todoDomains = filterTestDomain(
     args.testDomainName,
-    dao.getTodoDomains(analysisId, PASSWORD_FIELD_INPUT_ANALYSIS_TYPE)
+    dao.getTodoDomains(analysisId, INPUT_PASSWORD_FIELD_ANALYSIS_TYPE)
   );
 
   console.log(`Analysis ID: ${analysisId}`);
@@ -66,7 +66,7 @@ export default async function cmdPasswordFieldInput(
     todoDomains,
     { maxTasks: args.maxTasks },
     (domainModel) => () =>
-      runPasswordFieldInput(
+      runInputPasswordField(
         analysisId,
         domainModel,
         args.maxInstrumentWorkers,
@@ -77,7 +77,7 @@ export default async function cmdPasswordFieldInput(
   process.exit(0);
 }
 
-export async function runPasswordFieldInput(
+export async function runInputPasswordField(
   analysisId: Rowid,
   domainModel: DomainModel,
   maxWorkers: number,

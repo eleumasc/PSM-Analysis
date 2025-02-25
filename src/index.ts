@@ -1,7 +1,7 @@
+import cmdInputPasswordField from "./commands/cmdInputPasswordField";
 import cmdLoadDomainList from "./commands/cmdLoadDomainList";
 import cmdMeasure from "./commands/cmdMeasure";
-import cmdPasswordFieldInput from "./commands/cmdPasswordFieldInput";
-import cmdSignupPageSearch from "./commands/cmdSignupPageSearch";
+import cmdSearchSignupPage from "./commands/cmdSearchSignupPage";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -22,8 +22,8 @@ async function main() {
     )
 
     .command(
-      "signup-page-search <domain-list-id>",
-      "Create a new signup page search analysis",
+      "search-signup-page <domain-list-id>",
+      "Create a new search signup page analysis",
       (yargs) =>
         yargs
           .positional("domain-list-id", {
@@ -35,11 +35,11 @@ async function main() {
             type: "number",
             default: 1,
           }),
-      (args) => cmdSignupPageSearch({ action: "create", ...args })
+      (args) => cmdSearchSignupPage({ action: "create", ...args })
     )
     .command(
-      "signup-page-search:resume <analysis-id>",
-      "Resume an existing signup page search analysis",
+      "search-signup-page:resume <analysis-id>",
+      "Resume an existing search signup page analysis",
       (yargs) =>
         yargs
           .positional("analysis-id", {
@@ -51,12 +51,12 @@ async function main() {
             type: "number",
             default: 1,
           }),
-      (args) => cmdSignupPageSearch({ action: "resume", ...args })
+      (args) => cmdSearchSignupPage({ action: "resume", ...args })
     )
 
     .command(
-      "password-field-input <parent-analysis-id>",
-      "Create a new password field input analysis",
+      "input-password-field <parent-analysis-id>",
+      "Create a new input password field analysis",
       (yargs) =>
         yargs
           .positional("parent-analysis-id", {
@@ -78,11 +78,11 @@ async function main() {
           .option("test-domain-name", {
             type: "string",
           }),
-      (args) => cmdPasswordFieldInput({ action: "create", ...args })
+      (args) => cmdInputPasswordField({ action: "create", ...args })
     )
     .command(
-      "password-field-input:resume <analysis-id>",
-      "Resume an existing password field input analysis",
+      "input-password-field:resume <analysis-id>",
+      "Resume an existing input password field analysis",
       (yargs) =>
         yargs
           .positional("analysis-id", {
@@ -101,7 +101,7 @@ async function main() {
           .option("max-instrument-worker-memory", {
             type: "number",
           }),
-      (args) => cmdPasswordFieldInput({ action: "resume", ...args })
+      (args) => cmdInputPasswordField({ action: "resume", ...args })
     )
 
     .command(
