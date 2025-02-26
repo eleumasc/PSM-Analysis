@@ -7,9 +7,9 @@ import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
 import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
+import { getRockYou2021Passwords } from "../data/passwords";
 import { INPUT_PASSWORD_FIELD_ANALYSIS_TYPE } from "./cmdInputPasswordField";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
-import { ROCKYOU2021_PASSWORDS } from "../data/passwords";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import {
   Completion,
@@ -130,7 +130,7 @@ export async function runQueryPSM(
             );
           });
 
-        return runAnalysis(ROCKYOU2021_PASSWORDS);
+        return runAnalysis(getRockYou2021Passwords());
       }
     )
   );

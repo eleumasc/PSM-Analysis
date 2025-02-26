@@ -1,4 +1,5 @@
 import { reDigit, reSpecial, reUpper } from "./regexps";
+import { ROCKYOU2021_PASSWORD_ROWS } from "./rockyou2021";
 
 export type DetailedPassword = {
   password: string;
@@ -18,7 +19,7 @@ export const SAMPLE_STRONG_PASSWORD: string = "Hg%4cvUz2^#{<~[?!Ch@";
  * - Increasing entropy and length in every group
  * - Increasing complexity
  */
-export const SELECTED_DETAILED_PASSWORD_GROUPS = [
+export const DETECT_PSM_DETAILED_PASSWORD_GROUPS = [
   [
     "aA1!",
     "aaaA1!",
@@ -72,10 +73,12 @@ export const SELECTED_DETAILED_PASSWORD_GROUPS = [
   )
 );
 
-export function getSelectedPasswords(): string[] {
-  return SELECTED_DETAILED_PASSWORD_GROUPS.flatMap((group) =>
+export function getDetectPSMPasswords(): string[] {
+  return DETECT_PSM_DETAILED_PASSWORD_GROUPS.flatMap((group) =>
     group.map(({ password }) => password)
   );
 }
 
-export { ROCKYOU2021_PASSWORDS } from "./rockyou2021";
+export function getRockYou2021Passwords(): string[] {
+  return ROCKYOU2021_PASSWORD_ROWS.map(([password]) => password);
+}

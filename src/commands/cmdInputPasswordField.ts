@@ -14,7 +14,7 @@ import { SearchSignupPageResult } from "../core/searchSignupPage";
 import {
   SAMPLE_STRONG_PASSWORD,
   SAMPLE_WEAK_PASSWORD,
-  getSelectedPasswords,
+  getDetectPSMPasswords,
 } from "../data/passwords";
 import {
   Completion,
@@ -136,7 +136,7 @@ export async function runInputPasswordField(
         if (!mayDetectPSM(getIPFAbstractResultFromIPFResult(ipfResultPre))) {
           return ipfResultPre;
         }
-        const ipfResult = await runAnalysis(getSelectedPasswords());
+        const ipfResult = await runAnalysis(getDetectPSMPasswords());
         return [...ipfResultPre, ...ipfResult];
       }
     )

@@ -1,6 +1,7 @@
 import cmdDetectPSM from "./commands/cmdDetectPSM";
 import cmdInputPasswordField from "./commands/cmdInputPasswordField";
 import cmdLoadDomainList from "./commands/cmdLoadDomainList";
+import cmdMeasure from "./commands/cmdMeasure";
 import cmdQueryPSM from "./commands/cmdQueryPSM";
 import cmdSearchSignupPage from "./commands/cmdSearchSignupPage";
 import yargs from "yargs";
@@ -158,6 +159,22 @@ async function main() {
             default: 1,
           }),
       (args) => cmdQueryPSM({ action: "resume", ...args })
+    )
+
+    .command(
+      "measure <qry-analysis-id>",
+      "Detect PSM from a query PSM analysis",
+      (yargs) =>
+        yargs
+          .positional("qry-analysis-id", {
+            type: "number",
+            describe: "ID of the query PSM analysis to measure from",
+            demandOption: true,
+          })
+          .option("db-filepath", {
+            type: "string",
+          }),
+      (args) => cmdMeasure(args)
     )
 
     .demandCommand(1, "You must provide a valid command.")

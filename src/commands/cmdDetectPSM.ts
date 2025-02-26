@@ -55,7 +55,6 @@ export default function cmdDetectPSM(args: {
     ) as Completion<InputPasswordFieldResult>;
     if (isFailure(ipfCompletion)) continue;
     const { value: ipfResult } = ipfCompletion;
-    if (!ipfResult) continue; // TODO: fix status is success but value is undefined (serialization issue?)
 
     ipfDomainsCount += 1;
 
@@ -88,9 +87,9 @@ export default function cmdDetectPSM(args: {
         return {
           password,
           scores: scoreTypes.map(
-            (type) =>
+            (scoreType) =>
               abstractCalls.find((abstractCall) =>
-                _.isEqual(abstractCall.type, type)
+                _.isEqual(abstractCall.type, scoreType)
               )?.value ?? null
           ),
         };
@@ -107,7 +106,7 @@ export default function cmdDetectPSM(args: {
     scoreTables,
   };
 
-  writeFileSync("output.json", JSON.stringify(report, undefined, 2));
+  writeFileSync("output-detect-psm.json", JSON.stringify(report, undefined, 2));
 
   process.exit(0);
 }
