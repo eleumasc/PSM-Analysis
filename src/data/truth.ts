@@ -39,7 +39,7 @@ export const TRUTH = new Map([
   ["hp.com", [false, true]],
   ["oracle.com", [false, true]],
   ["wikimedia.org", [false, false]],
-  ["issuu.com", [false, true]],
+  ["issuu.com", [true, true]],
   ["opendns.com", [false, true]],
   ["reuters.com", [false, true]],
   ["vungle.com", [false, false]],
