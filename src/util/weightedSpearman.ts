@@ -38,7 +38,12 @@ function weightedRank(
 
   return rord.map((i) => rnk[i]);
 }
-export function weightedSpearman(x: number[], y: number[], w: number[]): number {
+
+export function weightedSpearman(
+  x: number[],
+  y: number[],
+  w: number[]
+): number {
   const xr = weightedRank(x, w);
   const yr = weightedRank(y, w);
   const totalWeight = w.reduce((sum, wi) => sum + wi, 0);
@@ -51,7 +56,7 @@ export function weightedSpearman(x: number[], y: number[], w: number[]): number 
   );
   const denominator = Math.sqrt(
     w.reduce((sum, wi, i) => sum + wi * (xr[i] - xb) ** 2, 0) *
-    w.reduce((sum, wi, i) => sum + wi * (yr[i] - yb) ** 2, 0)
+      w.reduce((sum, wi, i) => sum + wi * (yr[i] - yb) ** 2, 0)
   );
 
   return numerator / denominator;

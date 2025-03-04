@@ -2,7 +2,6 @@ import _ from "lodash";
 import assert from "assert";
 import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
 import { Completion, isFailure } from "../util/Completion";
-import { computePSMSimilarity, ScoringEntry } from "../core/computePSMSimilarity";
 import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
 import { INPUT_PASSWORD_FIELD_ANALYSIS_TYPE } from "./cmdInputPasswordField";
@@ -10,6 +9,10 @@ import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { QUERY_PSM_ANALYSIS_TYPE } from "./cmdQueryPSM";
 import { ROCKYOU2021_PASSWORD_ROWS } from "../data/rockyou2021";
 import { writeFileSync } from "fs";
+import {
+  computePSMSimilarity,
+  ScoringEntry,
+} from "../core/computePSMSimilarity";
 
 export default function cmdMeasure(args: {
   qryAnalysisId: number;
@@ -60,12 +63,12 @@ export default function cmdMeasure(args: {
           const evaluatedScore = abstractCalls.find((abstractCall) =>
             _.isEqual(abstractCall.type, scoreType)
           )?.value;
-          if (!evaluatedScore) return [];
+          if (typeof evaluatedScore === "undefined") return [];
           return [
             {
               frequency: frequency,
               referenceScore: rankIndex + 1,
-              evaluatedScore: evaluatedScore,
+              evaluatedScore,
             },
           ];
         }

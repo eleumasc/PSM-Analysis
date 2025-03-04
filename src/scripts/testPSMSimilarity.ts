@@ -1,5 +1,4 @@
 import _ from "lodash";
-import { weightedSpearman } from "../util/weightedSpearman";
 import {
   computePSMSimilarity,
   ScoringEntry,
