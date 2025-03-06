@@ -8,8 +8,8 @@ import useWorker from "../core/worker";
 import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
 import { getRockYou2021Passwords } from "../data/passwords";
-import { INPUT_PASSWORD_FIELD_ANALYSIS_TYPE } from "./cmdInputPasswordField";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
+import { PROBE_PSM_ANALYSIS_TYPE } from "./cmdProbePSM";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import {
   Completion,
@@ -18,7 +18,7 @@ import {
   toCompletion,
 } from "../util/Completion";
 
-export const QUERY_PSM_ANALYSIS_TYPE = "psm_query";
+export const QUERY_PSM_ANALYSIS_TYPE = "query_psm";
 
 export default async function cmdQueryPSM(
   args: (
@@ -43,7 +43,7 @@ export default async function cmdQueryPSM(
       ? dao.createSubAnalysis(
           QUERY_PSM_ANALYSIS_TYPE,
           args.parentAnalysisId,
-          INPUT_PASSWORD_FIELD_ANALYSIS_TYPE
+          PROBE_PSM_ANALYSIS_TYPE
         )
       : args.analysisId;
   const todoDomains = dao.getTodoDomains(analysisId, QUERY_PSM_ANALYSIS_TYPE);
@@ -76,23 +76,23 @@ export async function runQueryPSM(
 
   const { id: domainId, rank: domainRank, name: domainName } = domainModel;
 
-  const ipfAnalysisId = dao.getAnalysis(analysisId).parentAnalysisId!;
-  const ipfCompletion = dao.getAnalysisResult(
+  const probeAnalysisId = dao.getAnalysis(analysisId).parentAnalysisId!;
+  const probeCompletion = dao.getAnalysisResult(
     dao.getAnalysis(analysisId).parentAnalysisId!,
     domainId
   ) as Completion<InputPasswordFieldResult>;
-  if (isFailure(ipfCompletion)) {
+  if (isFailure(probeCompletion)) {
     dao.createAnalysisResult(analysisId, domainId, Failure());
     return;
   }
-  const { value: ipfResult } = ipfCompletion;
+  const { value: ipfResult } = probeCompletion;
   const psmDetected = detectPSM(getIPFAbstractResultFromIPFResult(ipfResult));
   if (!psmDetected) {
     dao.createAnalysisResult(analysisId, domainId, Failure());
     return;
   }
 
-  const spsAnalysisId = dao.getAnalysis(ipfAnalysisId).parentAnalysisId!;
+  const spsAnalysisId = dao.getAnalysis(probeAnalysisId).parentAnalysisId!;
   const spsCompletion = dao.getAnalysisResult(
     spsAnalysisId,
     domainId
@@ -122,12 +122,11 @@ export async function runQueryPSM(
           useBrowser(async (browser) => {
             const page = await browser.newPage();
             await installAnalysis(page, { workerExec });
-            return inputPasswordField(
-              page,
+            return inputPasswordField(page, {
               domainName,
               signupPageUrl,
-              passwordList
-            );
+              passwordList,
+            });
           });
 
         return runAnalysis(getRockYou2021Passwords());

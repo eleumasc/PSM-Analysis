@@ -10,8 +10,7 @@ export type DetailedPassword = {
   hasSpecial: boolean;
 };
 
-export const SAMPLE_WEAK_PASSWORD: string = "12345aA!";
-export const SAMPLE_STRONG_PASSWORD: string = "Hg%4cvUz2^#{<~[?!Ch@";
+export const PROBE_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
 
 /**
  * - First group exception: known patterns, increasing entropy and length, fixed complexity
@@ -21,12 +20,12 @@ export const SAMPLE_STRONG_PASSWORD: string = "Hg%4cvUz2^#{<~[?!Ch@";
  */
 export const DETECT_PSM_DETAILED_PASSWORD_GROUPS = [
   [
-    "aA1!",
-    "aaaA1!",
-    "aaaaaA1!",
-    "aaaaaaaA1!",
-    "aaaaaaaaaA1!",
-    "aaaaaaaaaaaaaA1!",
+    "a!1A",
+    "aaa!1A",
+    "aaaaa!1A",
+    "aaaaaaa!1A",
+    "aaaaaaaaa!1A",
+    "aaaaaaaaaaaaa!1A",
   ],
   [
     "vshb",
@@ -45,20 +44,20 @@ export const DETECT_PSM_DETAILED_PASSWORD_GROUPS = [
     "vshbncqajpzkewmA",
   ],
   [
-    "vsA1",
-    "vshbA1",
-    "vshbncA1",
-    "vshbncqaA1",
-    "vshbncqajpA1",
-    "vshbncqajpzkewA1",
+    "vs1A",
+    "vshb1A",
+    "vshbnc1A",
+    "vshbncqa1A",
+    "vshbncqajp1A",
+    "vshbncqajpzkew1A",
   ],
   [
-    "vA1!",
-    "vshA1!",
-    "vshbnA1!",
-    "vshbncqA1!",
-    "vshbncqajA1!",
-    "vshbncqajpzkeA1!",
+    "v!1A",
+    "vsh!1A",
+    "vshbn!1A",
+    "vshbncq!1A",
+    "vshbncqaj!1A",
+    "vshbncqajpzke!1A",
   ],
 ].map((group, groupIndex) =>
   group.map(

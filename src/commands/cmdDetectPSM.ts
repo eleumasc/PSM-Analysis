@@ -4,23 +4,24 @@ import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
 import { Completion, isFailure } from "../util/Completion";
 import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
-import { INPUT_PASSWORD_FIELD_ANALYSIS_TYPE } from "./cmdInputPasswordField";
+import { getScoreTable } from "../core/detection/ScoreTable";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
+import { PROBE_PSM_ANALYSIS_TYPE } from "./cmdProbePSM";
 import { SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE } from "./cmdSearchSignupPage";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
 
 export default function cmdDetectPSM(args: {
-  ipfAnalysisId: number;
+  probeAnalysisId: number;
   dbFilepath: string | undefined;
 }) {
   const dao = DataAccessObject.open(args.dbFilepath);
 
-  const { ipfAnalysisId } = args;
-  const ipfAnalysisModel = dao.getAnalysis(ipfAnalysisId);
-  checkAnalysisType(ipfAnalysisModel, INPUT_PASSWORD_FIELD_ANALYSIS_TYPE);
-  const spsAnalysisId = ipfAnalysisModel.parentAnalysisId!;
+  const { probeAnalysisId } = args;
+  const probeAnalysisModel = dao.getAnalysis(probeAnalysisId);
+  checkAnalysisType(probeAnalysisModel, PROBE_PSM_ANALYSIS_TYPE);
+  const spsAnalysisId = probeAnalysisModel.parentAnalysisId!;
   const spsAnalysisModel = dao.getAnalysis(spsAnalysisId);
   checkAnalysisType(spsAnalysisModel, SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE);
 
@@ -43,31 +44,31 @@ export default function cmdDetectPSM(args: {
     }
   }
 
-  let ipfDomainsCount = 0;
-  const psmDomainNames: string[] = [];
-  const psmConfusionMatrix = new ConfusionMatrix<string>();
+  let probeDomainsCount = 0;
+  const psmDetectedDomainNames: string[] = [];
+  const psmDetectedConfusionMatrix = new ConfusionMatrix<string>();
   const scoreTables = [];
 
-  for (const domainModel of dao.getDoneDomains(ipfAnalysisId)) {
-    const ipfCompletion = dao.getAnalysisResult(
-      ipfAnalysisId,
+  for (const domainModel of dao.getDoneDomains(probeAnalysisId)) {
+    const probeCompletion = dao.getAnalysisResult(
+      probeAnalysisId,
       domainModel.id
     ) as Completion<InputPasswordFieldResult>;
-    if (isFailure(ipfCompletion)) continue;
-    const { value: ipfResult } = ipfCompletion;
+    if (isFailure(probeCompletion)) continue;
+    const { value: ipfResult } = probeCompletion;
 
-    ipfDomainsCount += 1;
+    probeDomainsCount += 1;
 
     const ipfAbstractResult = getIPFAbstractResultFromIPFResult(ipfResult);
 
     const psmDetected = detectPSM(ipfAbstractResult);
     if (psmDetected) {
-      psmDomainNames.push(domainModel.name);
+      psmDetectedDomainNames.push(domainModel.name);
     }
 
     if (TRUTH.has(domainModel.name)) {
       const truth = TRUTH.get(domainModel.name)!;
-      psmConfusionMatrix.addValue(
+      psmDetectedConfusionMatrix.addValue(
         domainModel.name,
         Boolean(psmDetected),
         truth[0]
@@ -80,29 +81,16 @@ export default function cmdDetectPSM(args: {
     scoreTables.push({
       domain: domainModel.name,
       scoreTypes,
-      scoreTable: ipfAbstractResult.map(({ password, abstractTraces }) => {
-        const abstractCalls = abstractTraces.flatMap(
-          ({ abstractCalls }) => abstractCalls
-        );
-        return {
-          password,
-          scores: scoreTypes.map(
-            (scoreType) =>
-              abstractCalls.find((abstractCall) =>
-                _.isEqual(abstractCall.type, scoreType)
-              )?.value ?? null
-          ),
-        };
-      }),
+      scoreTable: getScoreTable(ipfAbstractResult, scoreTypes),
     });
   }
 
   const report = {
     accessibleDomainsCount,
     signupPagesCount,
-    ipfDomainsCount,
-    psmDomainNames,
-    psmConfusionMatrix: psmConfusionMatrix.get(),
+    probeDomainsCount,
+    psmDetectedDomainNames,
+    psmDetectedConfusionMatrix: psmDetectedConfusionMatrix.get(),
     scoreTables,
   };
 

@@ -1,7 +1,7 @@
 import cmdDetectPSM from "./commands/cmdDetectPSM";
-import cmdInputPasswordField from "./commands/cmdInputPasswordField";
 import cmdLoadDomainList from "./commands/cmdLoadDomainList";
 import cmdMeasure from "./commands/cmdMeasure";
+import cmdProbePSM from "./commands/cmdProbePSM";
 import cmdQueryPSM from "./commands/cmdQueryPSM";
 import cmdSearchSignupPage from "./commands/cmdSearchSignupPage";
 import yargs from "yargs";
@@ -77,7 +77,7 @@ async function main() {
           .option("test-domain-name", {
             type: "string",
           }),
-      (args) => cmdInputPasswordField({ action: "create", ...args })
+      (args) => cmdProbePSM({ action: "create", ...args })
     )
     .command(
       "input-password-field:resume <analysis-id>",
@@ -97,15 +97,15 @@ async function main() {
             type: "number",
             default: 1,
           }),
-      (args) => cmdInputPasswordField({ action: "resume", ...args })
+      (args) => cmdProbePSM({ action: "resume", ...args })
     )
 
     .command(
-      "detect-psm <ipf-analysis-id>",
+      "detect-psm <probe-analysis-id>",
       "Detect PSM from an input password field analysis",
       (yargs) =>
         yargs
-          .positional("ipf-analysis-id", {
+          .positional("probe-analysis-id", {
             type: "number",
             describe:
               "ID of the password input field analysis to detect PSM from",
@@ -162,11 +162,11 @@ async function main() {
     )
 
     .command(
-      "measure <qry-analysis-id>",
+      "measure <query-analysis-id>",
       "Detect PSM from a query PSM analysis",
       (yargs) =>
         yargs
-          .positional("qry-analysis-id", {
+          .positional("query-analysis-id", {
             type: "number",
             describe: "ID of the query PSM analysis to measure from",
             demandOption: true,

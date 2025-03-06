@@ -8,10 +8,14 @@ const CLEAR_TIMEOUT_MS: number = 1000;
 
 export default async function inputPasswordField(
   page: Page,
-  domainName: string,
-  signupPageUrl: string,
-  passwordList: string[]
+  options: {
+    domainName: string;
+    signupPageUrl: string;
+    passwordList: string[];
+  }
 ): Promise<InputPasswordFieldResult> {
+  const { domainName, signupPageUrl, passwordList } = options;
+
   const {
     passwordField,
     signupForm: { frame },
