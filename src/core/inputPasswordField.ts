@@ -3,8 +3,13 @@ import { InputPasswordFieldResult, Trace } from "./InputPasswordFieldResult";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
 
-const CAPTURE_TIMEOUT_MS: number = 5000;
-const CLEAR_TIMEOUT_MS: number = 1000;
+const CAPTURE_TIMEOUT_MS: number = 2000;
+const SHORT_TIMEOUT_MS: number = 500;
+
+export type InputPasswordFieldHint = {
+  fillCapturing: boolean;
+  blurCapturing: boolean;
+};
 
 export default async function inputPasswordField(
   page: Page,
@@ -12,9 +17,10 @@ export default async function inputPasswordField(
     domainName: string;
     signupPageUrl: string;
     passwordList: string[];
+    hint?: InputPasswordFieldHint;
   }
 ): Promise<InputPasswordFieldResult> {
-  const { domainName, signupPageUrl, passwordList } = options;
+  const { domainName, signupPageUrl, passwordList, hint } = options;
 
   const {
     passwordField,
@@ -34,19 +40,28 @@ export default async function inputPasswordField(
   for (const password of passwordList) {
     if (dirty) {
       await passwordField.fill("");
-      await timeout(CLEAR_TIMEOUT_MS);
+      await timeout(SHORT_TIMEOUT_MS);
     }
     dirty = true;
 
-    await capture(password);
-    await passwordField.pressSequentially(password);
-    await timeout(CAPTURE_TIMEOUT_MS);
-    const fillTrace = await captureEnd();
+    let fillTrace: Trace | undefined;
+    if (hint?.fillCapturing ?? true) {
+      await capture(password);
+      await passwordField.pressSequentially(password);
+      await timeout(CAPTURE_TIMEOUT_MS);
+      fillTrace = await captureEnd();
+    } else {
+      await passwordField.pressSequentially(password);
+      await timeout(SHORT_TIMEOUT_MS);
+    }
 
-    await capture(password);
-    await passwordField.blur();
-    await timeout(CAPTURE_TIMEOUT_MS);
-    const blurTrace = await captureEnd();
+    let blurTrace: Trace | undefined;
+    if (hint?.blurCapturing ?? true) {
+      await capture(password);
+      await passwordField.blur();
+      await timeout(CAPTURE_TIMEOUT_MS);
+      blurTrace = await captureEnd();
+    }
 
     result.push({ password, fillTrace, blurTrace });
   }

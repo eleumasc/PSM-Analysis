@@ -5,8 +5,7 @@ import { Completion, isFailure } from "../util/Completion";
 import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
 import { getScoreTable } from "../core/detection/ScoreTable";
-import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
-import { PROBE_PSM_ANALYSIS_TYPE } from "./cmdProbePSM";
+import { PROBE_PSM_ANALYSIS_TYPE, ProbePSMResult } from "./cmdProbePSM";
 import { SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE } from "./cmdSearchSignupPage";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
 import { TRUTH } from "../data/truth";
@@ -53,9 +52,12 @@ export default function cmdDetectPSM(args: {
     const probeCompletion = dao.getAnalysisResult(
       probeAnalysisId,
       domainModel.id
-    ) as Completion<InputPasswordFieldResult>;
+    ) as Completion<ProbePSMResult>;
     if (isFailure(probeCompletion)) continue;
-    const { value: ipfResult } = probeCompletion;
+    const {
+      value: { ipfResult },
+    } = probeCompletion;
+    if (!ipfResult) continue;
 
     probeDomainsCount += 1;
 

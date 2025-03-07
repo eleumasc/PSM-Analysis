@@ -66,7 +66,7 @@ const jobTracker = new JobTracker({
       const mutationList = mutObs?.takeRecords();
       if (mutationList) {
         for (const mutationRecord of mutationList) {
-          analysis.addMutation(mutationRecord);
+          analysis.addMutationRecord(mutationRecord);
         }
       }
       isRunningJobRelevant = false;

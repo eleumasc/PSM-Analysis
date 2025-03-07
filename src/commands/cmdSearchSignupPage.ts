@@ -6,7 +6,7 @@ import useBrowser from "../util/useBrowser";
 import { bomb } from "../util/timeout";
 import { toCompletion } from "../util/Completion";
 
-export const SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE = "signup_page_search";
+export const SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE = "search_signup_page";
 
 const ANALYSIS_TIMEOUT_MS: number = 5 * 60 * 1000; // 5 minutes
 

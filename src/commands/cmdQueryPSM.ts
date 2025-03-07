@@ -1,6 +1,5 @@
 import currentTime from "../util/currentTime";
 import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
-import inputPasswordField from "../core/inputPasswordField";
 import installAnalysis from "../core/installAnalysis";
 import processDomainTaskQueue from "../util/processDomainTaskQueue";
 import useBrowser from "../util/useBrowser";
@@ -9,14 +8,21 @@ import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
 import { getRockYou2021Passwords } from "../data/passwords";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
-import { PROBE_PSM_ANALYSIS_TYPE } from "./cmdProbePSM";
+import { PROBE_PSM_ANALYSIS_TYPE, ProbePSMResult } from "./cmdProbePSM";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
+import inputPasswordField, {
+  InputPasswordFieldHint,
+} from "../core/inputPasswordField";
 import {
   Completion,
   Failure,
   isFailure,
   toCompletion,
 } from "../util/Completion";
+
+export type QueryPSMResult = {
+  ipfResult: InputPasswordFieldResult;
+};
 
 export const QUERY_PSM_ANALYSIS_TYPE = "query_psm";
 
@@ -33,7 +39,6 @@ export default async function cmdQueryPSM(
   ) & {
     maxTasks: number;
     maxInstrumentWorkers: number;
-    maxInstrumentWorkerMemory?: number;
   }
 ) {
   const dao = DataAccessObject.open();
@@ -55,12 +60,7 @@ export default async function cmdQueryPSM(
     todoDomains,
     { maxTasks: args.maxTasks },
     (domainModel) => () =>
-      runQueryPSM(
-        analysisId,
-        domainModel,
-        args.maxInstrumentWorkers,
-        args.maxInstrumentWorkerMemory
-      )
+      runQueryPSM(analysisId, domainModel, args.maxInstrumentWorkers)
   );
 
   process.exit(0);
@@ -69,45 +69,44 @@ export default async function cmdQueryPSM(
 export async function runQueryPSM(
   analysisId: Rowid,
   domainModel: DomainModel,
-  maxWorkers: number,
-  maxWorkerMemory: number | undefined
+  maxWorkers: number
 ) {
   const dao = DataAccessObject.open();
 
   const { id: domainId, rank: domainRank, name: domainName } = domainModel;
 
-  const probeAnalysisId = dao.getAnalysis(analysisId).parentAnalysisId!;
-  const probeCompletion = dao.getAnalysisResult(
-    dao.getAnalysis(analysisId).parentAnalysisId!,
-    domainId
-  ) as Completion<InputPasswordFieldResult>;
-  if (isFailure(probeCompletion)) {
-    dao.createAnalysisResult(analysisId, domainId, Failure());
-    return;
-  }
-  const { value: ipfResult } = probeCompletion;
-  const psmDetected = detectPSM(getIPFAbstractResultFromIPFResult(ipfResult));
-  if (!psmDetected) {
-    dao.createAnalysisResult(analysisId, domainId, Failure());
-    return;
-  }
+  const dependencies = (() => {
+    const probeAnalysisId = dao.getAnalysis(analysisId).parentAnalysisId!;
+    const probeCompletion = dao.getAnalysisResult(
+      dao.getAnalysis(analysisId).parentAnalysisId!,
+      domainId
+    ) as Completion<ProbePSMResult>;
+    if (isFailure(probeCompletion)) return;
+    const {
+      value: { ipfResult, ipfHint },
+    } = probeCompletion;
+    if (!ipfResult) return;
+    const psmDetected = detectPSM(getIPFAbstractResultFromIPFResult(ipfResult));
+    if (!psmDetected) return;
 
-  const spsAnalysisId = dao.getAnalysis(probeAnalysisId).parentAnalysisId!;
-  const spsCompletion = dao.getAnalysisResult(
-    spsAnalysisId,
-    domainId
-  ) as Completion<SearchSignupPageResult>;
-  if (isFailure(spsCompletion)) {
+    const spsAnalysisId = dao.getAnalysis(probeAnalysisId).parentAnalysisId!;
+    const spsCompletion = dao.getAnalysisResult(
+      spsAnalysisId,
+      domainId
+    ) as Completion<SearchSignupPageResult>;
+    if (isFailure(spsCompletion)) return;
+    const {
+      value: { signupPageUrl },
+    } = spsCompletion;
+    if (signupPageUrl === null) return;
+
+    return { signupPageUrl, ipfHint };
+  })();
+  if (!dependencies) {
     dao.createAnalysisResult(analysisId, domainId, Failure());
     return;
   }
-  const {
-    value: { signupPageUrl },
-  } = spsCompletion;
-  if (signupPageUrl === null) {
-    dao.createAnalysisResult(analysisId, domainId, Failure());
-    return;
-  }
+  const { signupPageUrl, ipfHint } = dependencies;
 
   console.log(`begin analysis ${domainName} [${domainRank}]`);
   const startTime = currentTime();
@@ -115,10 +114,12 @@ export async function runQueryPSM(
     useWorker(
       {
         maxWorkers,
-        maxWorkerMemory,
       },
       async (workerExec) => {
-        const runAnalysis = (passwordList: string[]) =>
+        const runAnalysis = (
+          passwordList: string[],
+          hint?: InputPasswordFieldHint
+        ) =>
           useBrowser(async (browser) => {
             const page = await browser.newPage();
             await installAnalysis(page, { workerExec });
@@ -126,10 +127,12 @@ export async function runQueryPSM(
               domainName,
               signupPageUrl,
               passwordList,
+              hint,
             });
           });
 
-        return runAnalysis(getRockYou2021Passwords());
+        const ipfResult = await runAnalysis(getRockYou2021Passwords(), ipfHint);
+        return <QueryPSMResult>{ ipfResult };
       }
     )
   );

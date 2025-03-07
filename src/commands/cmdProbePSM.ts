@@ -1,7 +1,6 @@
 import currentTime from "../util/currentTime";
 import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
 import filterTestDomain from "../util/filterTestDomain";
-import inputPasswordField from "../core/inputPasswordField";
 import installAnalysis from "../core/installAnalysis";
 import processDomainTaskQueue from "../util/processDomainTaskQueue";
 import useBrowser from "../util/useBrowser";
@@ -9,15 +8,32 @@ import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
 import { getDetectPSMPasswords, PROBE_PASSWORD } from "../data/passwords";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
+import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { mayDetectPSM } from "../core/detection/mayDetectPSM";
 import { SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE } from "./cmdSearchSignupPage";
 import { SearchSignupPageResult } from "../core/searchSignupPage";
+import inputPasswordField, {
+  InputPasswordFieldHint,
+} from "../core/inputPasswordField";
 import {
   Completion,
   Failure,
   isFailure,
   toCompletion,
 } from "../util/Completion";
+
+export type ProbePSMResult = {
+  ipfResultPre: InputPasswordFieldResult;
+} & (
+  | {
+      ipfResult: InputPasswordFieldResult;
+      ipfHint: InputPasswordFieldHint;
+    }
+  | {
+      ipfResult: undefined;
+      ipfHint: undefined;
+    }
+);
 
 export const PROBE_PSM_ANALYSIS_TYPE = "probe_psm";
 
@@ -36,7 +52,6 @@ export default async function cmdProbePSM(
   ) & {
     maxTasks: number;
     maxInstrumentWorkers: number;
-    maxInstrumentWorkerMemory?: number;
     testDomainName?: string;
   }
 ) {
@@ -62,12 +77,7 @@ export default async function cmdProbePSM(
     todoDomains,
     { maxTasks: args.maxTasks },
     (domainModel) => () =>
-      runProbePSM(
-        analysisId,
-        domainModel,
-        args.maxInstrumentWorkers,
-        args.maxInstrumentWorkerMemory
-      )
+      runProbePSM(analysisId, domainModel, args.maxInstrumentWorkers)
   );
 
   process.exit(0);
@@ -76,29 +86,30 @@ export default async function cmdProbePSM(
 export async function runProbePSM(
   analysisId: Rowid,
   domainModel: DomainModel,
-  maxWorkers: number,
-  maxWorkerMemory: number | undefined
+  maxWorkers: number
 ) {
   const dao = DataAccessObject.open();
 
   const { id: domainId, rank: domainRank, name: domainName } = domainModel;
 
-  const spsAnalysisId = dao.getAnalysis(analysisId).parentAnalysisId!;
-  const spsCompletion = dao.getAnalysisResult(
-    spsAnalysisId,
-    domainId
-  ) as Completion<SearchSignupPageResult>;
-  if (isFailure(spsCompletion)) {
+  const dependencies = (() => {
+    const spsAnalysisId = dao.getAnalysis(analysisId).parentAnalysisId!;
+    const spsCompletion = dao.getAnalysisResult(
+      spsAnalysisId,
+      domainId
+    ) as Completion<SearchSignupPageResult>;
+    if (isFailure(spsCompletion)) return;
+    const {
+      value: { signupPageUrl },
+    } = spsCompletion;
+    if (signupPageUrl === null) return;
+    return { signupPageUrl };
+  })();
+  if (!dependencies) {
     dao.createAnalysisResult(analysisId, domainId, Failure());
     return;
   }
-  const {
-    value: { signupPageUrl },
-  } = spsCompletion;
-  if (signupPageUrl === null) {
-    dao.createAnalysisResult(analysisId, domainId, Failure());
-    return;
-  }
+  const { signupPageUrl } = dependencies;
 
   console.log(`begin analysis ${domainName} [${domainRank}]`);
   const startTime = currentTime();
@@ -106,10 +117,12 @@ export async function runProbePSM(
     useWorker(
       {
         maxWorkers,
-        maxWorkerMemory,
       },
       async (workerExec) => {
-        const runAnalysis = (passwordList: string[]) =>
+        const runAnalysis = (
+          passwordList: string[],
+          hint?: InputPasswordFieldHint
+        ) =>
           useBrowser(async (browser) => {
             const page = await browser.newPage();
             await installAnalysis(page, { workerExec });
@@ -119,17 +132,24 @@ export async function runProbePSM(
                   domainName,
                   signupPageUrl,
                   passwordList,
+                  hint,
                 }),
               ANALYSIS_TIMEOUT_MS
             );
           });
 
         const ipfResultPre = await runAnalysis([PROBE_PASSWORD]);
-        if (!mayDetectPSM(getIPFAbstractResultFromIPFResult(ipfResultPre))) {
-          return ipfResultPre;
+        const ipfHint = mayDetectPSM(
+          getIPFAbstractResultFromIPFResult(ipfResultPre)
+        );
+        if (!ipfHint) {
+          return <ProbePSMResult>{ ipfResultPre };
         }
-        const ipfResult = await runAnalysis(getDetectPSMPasswords());
-        return [...ipfResult];
+        const ipfResult = await runAnalysis(
+          [...getDetectPSMPasswords(), PROBE_PASSWORD],
+          ipfHint
+        );
+        return <ProbePSMResult>{ ipfResultPre, ipfResult, ipfHint };
       }
     )
   );

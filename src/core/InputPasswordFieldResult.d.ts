@@ -2,14 +2,14 @@ export type InputPasswordFieldResult = InputPasswordFieldDetail[];
 
 export type InputPasswordFieldDetail = {
   password: string;
-  fillTrace: Trace;
-  blurTrace: Trace;
+  fillTrace?: Trace;
+  blurTrace?: Trace;
 };
 
 export type Trace = {
   functionCalls: FunctionCall[];
   xhrRequests: XHRRequest[];
-  incState: IncState;
+  mutationKeys: MutationKey[];
 };
 
 export type FunctionCall = {
@@ -24,31 +24,6 @@ export type XHRRequest = {
   status: number;
   responseText: string;
 };
-
-export type Mutation =
-  | {
-      type: "attributes";
-      target: SerializableValue;
-      attributeName: string;
-      value: string;
-      oldValue: string;
-    }
-  | {
-      type: "characterData";
-      target: SerializableValue;
-      value: string;
-      oldValue: string;
-    }
-  | {
-      type: "childList";
-      target: SerializableValue;
-      addedNodes: SerializableValue[];
-      removedNodes: SerializableValue[];
-      addedTexts: string[];
-      removedTexts: string[];
-    };
-
-export type IncState = { key: string; value: string }[];
 
 export type SourceLoc = [string, number, number];
 
@@ -69,3 +44,5 @@ export type SerializableValue =
       value: Record<string, SerializableValue> | null;
     }
   | { type: "function"; id: number };
+
+export type MutationKey = string;

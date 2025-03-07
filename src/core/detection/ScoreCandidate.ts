@@ -1,4 +1,4 @@
-import { IncState } from "../InputPasswordFieldResult";
+import { MutationKey } from "../InputPasswordFieldResult";
 import {
   AbstractCallType,
   getAbstractCallTypeKey,
@@ -13,7 +13,7 @@ export type ScoreCandidate = {
 export type ScoreCandidateOccurrence = {
   password: string;
   value: number;
-  incState: IncState;
+  mutationKeys: MutationKey[];
 };
 
 export function getScoreCandidatesFromPFIAbstractResult(
@@ -22,7 +22,7 @@ export function getScoreCandidatesFromPFIAbstractResult(
   const candidateMap = new Map<string, ScoreCandidate>();
   for (const { password, abstractTraces } of ipfAbstractResult) {
     for (const trace of abstractTraces) {
-      const { abstractCalls, incState } = trace;
+      const { abstractCalls, mutationKeys } = trace;
       for (const abstractCall of abstractCalls) {
         const { type, value } = abstractCall;
         const key = getAbstractCallTypeKey(type);
@@ -35,7 +35,7 @@ export function getScoreCandidatesFromPFIAbstractResult(
           candidateMap.set(key, candidate);
         }
         const { occurrences } = candidate;
-        occurrences.push({ password, value, incState });
+        occurrences.push({ password, value, mutationKeys });
       }
     }
   }

@@ -57,7 +57,7 @@ async function main() {
     )
 
     .command(
-      "input-password-field <parent-analysis-id>",
+      "probe-psm <parent-analysis-id>",
       "Create a new input password field analysis",
       (yargs) =>
         yargs
@@ -80,7 +80,7 @@ async function main() {
       (args) => cmdProbePSM({ action: "create", ...args })
     )
     .command(
-      "input-password-field:resume <analysis-id>",
+      "probe-psm:resume <analysis-id>",
       "Resume an existing input password field analysis",
       (yargs) =>
         yargs

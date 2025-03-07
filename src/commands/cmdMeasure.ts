@@ -5,9 +5,8 @@ import { Completion, isFailure } from "../util/Completion";
 import { detectPSM } from "../core/detection/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
 import { getScoreTable } from "../core/detection/ScoreTable";
-import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
-import { PROBE_PSM_ANALYSIS_TYPE } from "./cmdProbePSM";
-import { QUERY_PSM_ANALYSIS_TYPE } from "./cmdQueryPSM";
+import { PROBE_PSM_ANALYSIS_TYPE, ProbePSMResult } from "./cmdProbePSM";
+import { QUERY_PSM_ANALYSIS_TYPE, QueryPSMResult } from "./cmdQueryPSM";
 import { ROCKYOU2021_PASSWORD_ROWS } from "../data/rockyou2021";
 import { writeFileSync } from "fs";
 import {
@@ -34,21 +33,28 @@ export default function cmdMeasure(args: {
     const queryCompletion = dao.getAnalysisResult(
       queryAnalysisId,
       domainModel.id
-    ) as Completion<InputPasswordFieldResult>;
+    ) as Completion<QueryPSMResult>;
     if (isFailure(queryCompletion)) continue;
-    const { value: queryResult } = queryCompletion;
+    const {
+      value: { ipfResult: queryIpfResult },
+    } = queryCompletion;
 
     const probeCompletion = dao.getAnalysisResult(
       probeAnalysisId,
       domainModel.id
-    ) as Completion<InputPasswordFieldResult>;
+    ) as Completion<ProbePSMResult>;
     if (isFailure(probeCompletion)) continue;
-    const { value: ipfResult } = probeCompletion;
+    const {
+      value: { ipfResult: probeIpfResult },
+    } = probeCompletion;
+    assert(probeIpfResult);
 
-    const queryAbstractResult = getIPFAbstractResultFromIPFResult(queryResult);
-    const ipfAbstractResult = getIPFAbstractResultFromIPFResult(ipfResult);
+    const queryAbstractResult =
+      getIPFAbstractResultFromIPFResult(queryIpfResult);
+    const probeAbstractResult =
+      getIPFAbstractResultFromIPFResult(probeIpfResult);
 
-    const psmDetected = detectPSM(ipfAbstractResult);
+    const psmDetected = detectPSM(probeAbstractResult);
     assert(psmDetected);
 
     const { scoreTypes } = psmDetected;

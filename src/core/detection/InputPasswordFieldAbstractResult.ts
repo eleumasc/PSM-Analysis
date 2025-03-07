@@ -5,10 +5,10 @@ import mayBeScore from "./mayBeScore";
 import {
   Trace,
   FunctionCall,
-  IncState,
   InputPasswordFieldResult,
   SourceLoc,
   XHRRequest,
+  MutationKey,
 } from "../InputPasswordFieldResult";
 
 export type InputPasswordFieldAbstractResult =
@@ -19,9 +19,12 @@ export type InputPasswordFieldAbstractDetail = {
   abstractTraces: AbstractTrace[];
 };
 
+export type CapturePhase = "fill" | "blur";
+
 export type AbstractTrace = {
+  capturePhase: CapturePhase;
   abstractCalls: AbstractCall[];
-  incState: IncState;
+  mutationKeys: MutationKey[];
 };
 
 export type AbstractCall = {
@@ -54,32 +57,50 @@ export function getIPFAbstractResultFromIPFResult(
 ): InputPasswordFieldAbstractResult {
   return ipfResult.map(
     ({ password, fillTrace, blurTrace }): InputPasswordFieldAbstractDetail => {
-      const abstractTraces = [fillTrace, blurTrace]
-        .map((trace): Trace => {
-          const { functionCalls, xhrRequests, incState } = trace;
-          return {
-            functionCalls,
-            xhrRequests: xhrRequests.filter((xhrRequest) => {
-              const { url, body } = xhrRequest;
-              return (
-                url.includes(encodeURIComponent(password)) ||
-                body.includes(password) ||
-                body.includes(JSON.stringify(password)) ||
-                body.includes(encodeURIComponent(password))
-              );
-            }),
-            incState,
-          };
-        })
-        .map((trace): AbstractTrace => getAbstractTraceFromTrace(trace));
-      return { password, abstractTraces };
+      const createAbstractTraceArray = (
+        traceArray: (Trace | undefined)[],
+        capturePhase: CapturePhase
+      ): AbstractTrace[] =>
+        traceArray
+          .filter((x): x is NonNullable<typeof x> => Boolean(x))
+          .map((trace): Trace => {
+            const { functionCalls, xhrRequests, mutationKeys } = trace;
+            return {
+              functionCalls,
+              xhrRequests: xhrRequests.filter((xhrRequest) => {
+                const { url, body } = xhrRequest;
+                return (
+                  url.includes(encodeURIComponent(password)) ||
+                  body.includes(password) ||
+                  body.includes(JSON.stringify(password)) ||
+                  body.includes(encodeURIComponent(password))
+                );
+              }),
+              mutationKeys,
+            };
+          })
+          .map(
+            (trace): AbstractTrace =>
+              getAbstractTraceFromTrace(trace, capturePhase)
+          );
+      return {
+        password,
+        abstractTraces: [
+          ...createAbstractTraceArray([fillTrace], "fill"),
+          ...createAbstractTraceArray([blurTrace], "blur"),
+        ],
+      };
     }
   );
 }
 
-function getAbstractTraceFromTrace(trace: Trace): AbstractTrace {
-  const { functionCalls, xhrRequests, incState } = trace;
+function getAbstractTraceFromTrace(
+  trace: Trace,
+  capturePhase: CapturePhase
+): AbstractTrace {
+  const { functionCalls, xhrRequests, mutationKeys } = trace;
   return {
+    capturePhase,
     abstractCalls: filterDistinctAndConsistentAbstractCalls([
       ...functionCalls.flatMap((functionCall) =>
         getAbstractCallsFromFunctionCall(functionCall)
@@ -88,7 +109,7 @@ function getAbstractTraceFromTrace(trace: Trace): AbstractTrace {
         getAbstractCallsFromXHRRequest(xhrRequest)
       ),
     ]),
-    incState,
+    mutationKeys,
   };
 }
 

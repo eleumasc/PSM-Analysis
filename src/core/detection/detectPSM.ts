@@ -67,12 +67,7 @@ export function detectPSM(
     )
     .map(({ type }) => type);
 
-  const psmDetected = abstractTraces.some(
-    (abstractTrace) =>
-      abstractTrace.abstractCalls.length > 0 &&
-      abstractTrace.incState.length > 0 &&
-      scoreTypes.length > 0
-  );
+  const psmDetected = scoreTypes.length > 0;
 
   return psmDetected ? { scoreTypes } : null;
 }
