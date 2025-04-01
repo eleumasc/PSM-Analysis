@@ -21,10 +21,6 @@ export type PSMDetail = {
 export function detectPSM(
   ipfAbstractResult: InputPasswordFieldAbstractResult
 ): PSMDetail | null {
-  const abstractTraces = ipfAbstractResult.flatMap(
-    ({ abstractTraces }) => abstractTraces
-  );
-
   const scoreCandidates =
     getScoreCandidatesFromPFIAbstractResult(ipfAbstractResult);
 
