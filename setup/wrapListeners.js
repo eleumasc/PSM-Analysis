@@ -3,13 +3,17 @@
 const getOrCreateMapEntry = require("./util/getOrCreateMapEntry");
 const Map = require("./safe/Map");
 const WeakMap = require("./safe/WeakMap");
+const unbind = require("./util/unbind");
 
-const apply = Reflect.apply;
-const defineProperty = Reflect.defineProperty;
-const getOwnPropertyDescriptor = Reflect.getOwnPropertyDescriptor;
-const ownKeys = Reflect.ownKeys;
-const Boolean = global.Boolean;
-const String = global.String;
+const $Array$$map = unbind(Array.prototype.map);
+const $Array$$filter = unbind(Array.prototype.filter);
+const $Boolean = global.Boolean;
+const $Reflect$apply = Reflect.apply;
+const $Reflect$defineProperty = Reflect.defineProperty;
+const $Reflect$getOwnPropertyDescriptor = Reflect.getOwnPropertyDescriptor;
+const $Reflect$ownKeys = Reflect.ownKeys;
+const $String = global.String;
+const $String$$match = unbind(String.prototype.match);
 
 function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
   buildListenerWrapper =
@@ -66,10 +70,10 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
     if ((typeof opts === "object" && opts) || typeof opts === "function") {
       return {
         __proto__: opts,
-        capture: Boolean(opts.capture),
+        capture: $Boolean(opts.capture),
       };
     } else {
-      return Boolean(opts);
+      return $Boolean(opts);
     }
   }
 
@@ -86,17 +90,17 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
     );
   }
 
-  const EventTarget_proto = EventTarget.prototype;
-  const EventTarget_proto_addEventListener = EventTarget_proto.addEventListener;
-  const EventTarget_proto_removeEventListener =
-    EventTarget_proto.removeEventListener;
+  const $EventTarget$proto = EventTarget.prototype;
+  const $EventTarget$proto$addEventListener = $EventTarget$proto.addEventListener;
+  const $EventTarget$proto$removeEventListener =
+    $EventTarget$proto.removeEventListener;
 
-  EventTarget_proto.addEventListener = function (type, listener, opts) {
+  $EventTarget$proto.addEventListener = function (type, listener, opts) {
     if (!isListenerCallback(listener)) {
-      apply(EventTarget_proto_addEventListener, this, arguments);
+      $Reflect$apply($EventTarget$proto$addEventListener, this, arguments);
       return;
     }
-    type = String(type);
+    type = $String(type);
     opts = normalizeOpts(opts);
     const listenerWrapper = buildListenerWrapper(
       this,
@@ -104,7 +108,7 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
       typeof listener === "function"
         ? listener
         : function () {
-            return apply(listener.handleEvent, listener, arguments);
+            return $Reflect$apply(listener.handleEvent, listener, arguments);
           }
     );
     const listenerWrapperBox = getOrCreateListenerWrapperBox(
@@ -114,13 +118,13 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
       getUseCaptureByNormalizedOpts(opts)
     );
     if (listenerWrapperBox.value) {
-      apply(EventTarget_proto_removeEventListener, this, [
+      $Reflect$apply($EventTarget$proto$removeEventListener, this, [
         type,
         listenerWrapperBox.value,
         opts,
       ]);
     }
-    apply(EventTarget_proto_addEventListener, this, [
+    $Reflect$apply($EventTarget$proto$addEventListener, this, [
       type,
       listenerWrapper,
       opts,
@@ -129,12 +133,12 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
     return;
   };
 
-  EventTarget_proto.removeEventListener = function (type, listener, opts) {
+  $EventTarget$proto.removeEventListener = function (type, listener, opts) {
     if (!isListenerCallback(listener)) {
-      apply(EventTarget_proto_removeEventListener, this, arguments);
+      $Reflect$apply($EventTarget$proto$removeEventListener, this, arguments);
       return;
     }
-    type = String(type);
+    type = $String(type);
     opts = normalizeOpts(opts);
     const listenerWrapperBox = getListenerWrapperBox(
       this,
@@ -143,7 +147,7 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
       getUseCaptureByNormalizedOpts(opts)
     );
     if (listenerWrapperBox && listenerWrapperBox.value) {
-      apply(EventTarget_proto_removeEventListener, this, [
+      $Reflect$apply($EventTarget$proto$removeEventListener, this, [
         type,
         listenerWrapperBox.value,
         opts,
@@ -159,7 +163,7 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
 
   function setWrappee(wrapper, wrappee) {
     const metaWrapper = function () {
-      return apply(wrapper, this, arguments);
+      return $Reflect$apply(wrapper, this, arguments);
     };
     metaWrapper[WRAPPEE_KEY] = wrappee;
     return metaWrapper;
@@ -174,9 +178,9 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
   function createSetOnEventHandler(type, setter) {
     return function (listener) {
       if (typeof listener !== "function") {
-        return apply(setter, this, arguments);
+        return $Reflect$apply(setter, this, arguments);
       }
-      return apply(setter, this, [
+      return $Reflect$apply(setter, this, [
         setWrappee(buildListenerWrapper(this, type, listener), listener),
       ]);
     };
@@ -184,7 +188,7 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
 
   function createGetOnEventHandler(_type, getter) {
     return function () {
-      const wrapper = apply(getter, this, []);
+      const wrapper = $Reflect$apply(getter, this, []);
       if (typeof wrapper !== "function") {
         return wrapper;
       }
@@ -193,14 +197,14 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
   }
 
   function wrapOnEventHandlers(target) {
-    for (const key of ownKeys(target)) {
+    for (const key of $Reflect$ownKeys(target)) {
       if (typeof key !== "string") continue;
-      const match = key.match(/^on([a-z]+)$/);
+      const match = $String$$match(key, /^on([a-z]+)$/);
       if (!match) continue;
       const type = match[1];
-      const d = getOwnPropertyDescriptor(target, key);
+      const d = $Reflect$getOwnPropertyDescriptor(target, key);
       if (!d.configurable || !d.get || !d.set) continue;
-      defineProperty(target, key, {
+      $Reflect$defineProperty(target, key, {
         __proto__: d,
         get: createGetOnEventHandler(type, d.get),
         set: createSetOnEventHandler(type, d.set),
@@ -210,21 +214,23 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
 
   wrapOnEventHandlers(global);
 
-  for (const Constructor of ownKeys(global)
-    .map((key) => getOwnPropertyDescriptor(global, key).value)
-    .filter(
-      (value) => value && typeof value === "function" && value.prototype
-    )) {
+  for (const Constructor of $Array$$filter(
+    $Array$$map(
+      $Reflect$ownKeys(global),
+      (key) => $Reflect$getOwnPropertyDescriptor(global, key).value
+    ),
+    (value) => value && typeof value === "function" && value.prototype
+  )) {
     wrapOnEventHandlers(Constructor.prototype);
   }
 
   // setTimeout, setInterval
 
-  const global_setTimeout = global.setTimeout;
-  const global_setInterval = global.setInterval;
+  const $setTimeout = global.setTimeout;
+  const $setInterval = global.setInterval;
 
   global.setTimeout = function (callback, delay, ...params) {
-    return apply(global_setTimeout, this, [
+    return $Reflect$apply($setTimeout, this, [
       typeof callback === "function"
         ? buildCallbackWrapper(this, callback)
         : callback,
@@ -234,7 +240,7 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
   };
 
   global.setInterval = function (callback, delay, ...params) {
-    return apply(global_setInterval, this, [
+    return $Reflect$apply($setInterval, this, [
       typeof callback === "function"
         ? buildCallbackWrapper(this, callback)
         : callback,
@@ -245,13 +251,13 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
 
   // Promise.prototype.then, Promise.prototype.catch, Promise.prototype.finally
 
-  const Promise_proto = Promise.prototype;
-  const Promise_proto_then = Promise_proto.then;
-  const Promise_proto_catch = Promise_proto.catch;
-  const Promise_proto_finally = Promise_proto.finally;
+  const $Promise$proto = Promise.prototype;
+  const $Promise$proto$then = $Promise$proto.then;
+  const $Promise$proto$catch = $Promise$proto.catch;
+  const $Promise$proto$finally = $Promise$proto.finally;
 
-  Promise_proto.then = function (onFulfilled, onRejected) {
-    return apply(Promise_proto_then, this, [
+  $Promise$proto.then = function (onFulfilled, onRejected) {
+    return $Reflect$apply($Promise$proto$then, this, [
       typeof onFulfilled === "function"
         ? buildCallbackWrapper(this, onFulfilled)
         : onFulfilled,
@@ -261,16 +267,16 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
     ]);
   };
 
-  Promise_proto.catch = function (onRejected) {
-    return apply(Promise_proto_catch, this, [
+  $Promise$proto.catch = function (onRejected) {
+    return $Reflect$apply($Promise$proto$catch, this, [
       typeof onRejected === "function"
         ? buildCallbackWrapper(this, onRejected)
         : onRejected,
     ]);
   };
 
-  Promise_proto.finally = function (onFinally) {
-    return apply(Promise_proto_finally, this, [
+  $Promise$proto.finally = function (onFinally) {
+    return $Reflect$apply($Promise$proto$finally, this, [
       typeof onFinally === "function"
         ? buildCallbackWrapper(this, onFinally)
         : onFinally,
@@ -279,10 +285,10 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
 
   // queueMicrotask
 
-  const global_queueMicrotask = global.queueMicrotask;
+  const $queueMicrotask = global.queueMicrotask;
 
   global.queueMicrotask = function (callback) {
-    return apply(global_queueMicrotask, this, [
+    return $Reflect$apply($queueMicrotask, this, [
       typeof callback === "function"
         ? buildCallbackWrapper(this, callback)
         : callback,
@@ -291,10 +297,10 @@ function wrapListeners(buildListenerWrapper, buildCallbackWrapper) {
 
   // requestAnimationFrame
 
-  const global_requestAnimationFrame = global.requestAnimationFrame;
+  const $requestAnimationFrame = global.requestAnimationFrame;
 
   global.requestAnimationFrame = function (callback) {
-    return apply(global_requestAnimationFrame, this, [
+    return $Reflect$apply($requestAnimationFrame, this, [
       typeof callback === "function"
         ? buildCallbackWrapper(this, callback)
         : callback,

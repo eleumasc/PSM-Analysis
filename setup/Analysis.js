@@ -1,9 +1,12 @@
 "use strict";
 
 const buildTrace = require("./buildTrace");
-const Array = require("./safe/Array");
 const Map = require("./safe/Map");
 const toSerializableValue = require("./util/toSerializableValue");
+const unbind = require("./util/unbind");
+
+const $Array$$map = unbind(Array.prototype.map);
+const $Array$$push = unbind(Array.prototype.push);
 
 class Analysis {
   constructor() {
@@ -14,8 +17,8 @@ class Analysis {
     this.traceAcc = {
       password,
       functionCalls: new Map(),
-      xhrRequests: new Array(),
-      mutationRecords: new Array(),
+      xhrRequests: [],
+      mutationRecords: [],
     };
   }
 
@@ -31,7 +34,7 @@ class Analysis {
     if (!traceAcc) return;
     traceAcc.functionCalls.set(callId, {
       sourceLoc,
-      args: Array.from(args).map((arg) => toSerializableValue(arg, 1)),
+      args: $Array$$map([...args], (arg) => toSerializableValue(arg, 1)),
     });
   }
 
@@ -50,13 +53,13 @@ class Analysis {
   addMutationRecord(mutationRecord) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    traceAcc.mutationRecords.push(mutationRecord);
+    $Array$$push(traceAcc.mutationRecords, mutationRecord);
   }
 
   addXHRRequest(requestRecord) {
     const traceAcc = this.traceAcc;
     if (!traceAcc) return;
-    traceAcc.xhrRequests.push(requestRecord);
+    $Array$$push(traceAcc.xhrRequests, requestRecord);
   }
 }
 

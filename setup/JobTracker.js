@@ -1,9 +1,13 @@
 "use strict";
 
+const unbind = require("./util/unbind");
+
+const $Function$$bind = unbind(Function.prototype.bind);
+
 class JobTracker {
   constructor(options) {
-    this.jobStart = options.jobStart.bind(null);
-    this.jobEnd = options.jobEnd.bind(null);
+    this.jobStart = $Function$$bind(options.jobStart, null);
+    this.jobEnd = $Function$$bind(options.jobEnd, null);
     this.height = 0;
     this.jobId = undefined;
     this.nextJobId = 1;

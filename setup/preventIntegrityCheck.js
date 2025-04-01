@@ -3,9 +3,9 @@ const defineProperty = Reflect.defineProperty;
 const VIRTUAL_INTEGRITY_KEY = Symbol();
 
 function preventIntegrityCheck() {
-  const HTMLScriptElement_proto = HTMLScriptElement.prototype;
+  const $HTMLScriptElement$proto = HTMLScriptElement.prototype;
 
-  defineProperty(HTMLScriptElement_proto, "integrity", {
+  defineProperty($HTMLScriptElement$proto, "integrity", {
     enumerable: true,
     configurable: true,
     get: function () {

@@ -3,27 +3,26 @@
 const WeakMap = require("./safe/WeakMap");
 const toSerializableRequestBody = require("./util/toSerializableRequestBody");
 
-const apply = Reflect.apply;
-const EventTarget_proto_addEventListener =
-  EventTarget.prototype.addEventListener;
-const Request = global.Request;
-const JSON_stringify = JSON.stringify;
+const $EventTarget$$addEventListener = EventTarget.prototype.addEventListener;
+const $JSON$stringify = JSON.stringify;
+const $Reflect$apply = Reflect.apply;
+const $Request = global.Request;
 
 function wrapNetworkSinks(callback, callbackResponse) {
-  const XMLHttpRequest_proto = XMLHttpRequest.prototype;
-  const XMLHttpRequest_proto_open = XMLHttpRequest_proto.open;
-  const XMLHttpRequest_proto_send = XMLHttpRequest_proto.send;
+  const $XMLHttpRequest$proto = XMLHttpRequest.prototype;
+  const $XMLHttpRequest$proto$open = $XMLHttpRequest$proto.open;
+  const $XMLHttpRequest$proto$send = $XMLHttpRequest$proto.send;
 
   const xhrBodyMap = new WeakMap();
 
-  XMLHttpRequest_proto.open = function () {
+  $XMLHttpRequest$proto.open = function () {
     const [method, url, ...rest] = arguments;
 
-    const request = new Request(url, { method });
+    const request = new $Request(url, { method });
     const requestMethod = request.method;
     const requestUrl = request.url;
 
-    apply(EventTarget_proto_addEventListener, this, [
+    $Reflect$apply($EventTarget$$addEventListener, this, [
       "readystatechange",
       () => {
         if (this.readyState === XMLHttpRequest.DONE && this.status !== 0) {
@@ -36,7 +35,7 @@ function wrapNetworkSinks(callback, callbackResponse) {
               case "text":
                 return this.responseText;
               case "json":
-                return JSON_stringify(this.response);
+                return $JSON$stringify(this.response);
               default:
                 return "";
             }
@@ -56,36 +55,36 @@ function wrapNetworkSinks(callback, callbackResponse) {
       },
     ]);
 
-    return apply(XMLHttpRequest_proto_open, this, [
+    return $Reflect$apply($XMLHttpRequest$proto$open, this, [
       requestMethod,
       requestUrl,
       ...rest,
     ]);
   };
 
-  XMLHttpRequest_proto.send = function () {
+  $XMLHttpRequest$proto.send = function () {
     callback(this);
 
     const [body] = arguments;
 
     xhrBodyMap.set(this, toSerializableRequestBody(body));
 
-    return apply(XMLHttpRequest_proto_send, this, arguments);
+    return $Reflect$apply($XMLHttpRequest$proto$send, this, arguments);
   };
 
-  const global_fetch = global.fetch;
+  const $fetch = global.fetch;
 
   global.fetch = async function () {
     const [resource, init] = arguments;
 
-    const request = new Request(resource, init);
+    const request = new $Request(resource, init);
     callback(request);
 
     const method = request.method;
     const url = request.url;
     const body = await request.text();
 
-    const response = await apply(global_fetch, this, [resource, init]);
+    const response = await $Reflect$apply($fetch, this, [resource, init]);
 
     const responseClone = response.clone();
     const status = responseClone.status;

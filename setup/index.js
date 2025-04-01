@@ -9,12 +9,12 @@ const wrapListeners = require("./wrapListeners");
 const wrapNetworkSinks = require("./wrapNetworkSinks");
 const wrapPostMessage = require("./wrapPostMessage");
 
-const apply = Reflect.apply;
-const HTMLInputElement = global.HTMLInputElement;
+const $Reflect$apply = Reflect.apply;
+const $HTMLInputElement = global.HTMLInputElement;
 
 function isPasswordFieldInputEvent(e) {
   const target = e.target;
-  if (target instanceof HTMLInputElement && target.type === "password") {
+  if (target instanceof $HTMLInputElement && target.type === "password") {
     switch (e.type) {
       case "input":
       case "keyup":
@@ -134,7 +134,7 @@ wrapListeners(
         mutObs?.takeRecords(); // reset the mutation queue
       }
       try {
-        return apply(listener, this, arguments);
+        return $Reflect$apply(listener, this, arguments);
       } finally {
         jobTracker.leave();
       }
@@ -145,7 +145,7 @@ wrapListeners(
     return function () {
       jobTracker.enter(setterJobId);
       try {
-        return apply(callback, this, arguments);
+        return $Reflect$apply(callback, this, arguments);
       } finally {
         jobTracker.leave();
       }

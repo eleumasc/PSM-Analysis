@@ -2,16 +2,22 @@
 
 const getMutationKeys = require("./getMutationKeys");
 const mayBeScoreFunctionCall = require("./mayBeScoreFunctionCall");
-const Array = require("./safe/Array");
+const unbind = require("./util/unbind");
+
+const $Array$$filter = unbind(Array.prototype.filter);
+const $Array$$map = unbind(Array.prototype.map);
 
 function buildTrace(traceAcc) {
   const { password, functionCalls, xhrRequests, mutationRecords } = traceAcc;
   return {
-    functionCalls: Array.from(functionCalls.values())
-      .filter((functionCall) => mayBeScoreFunctionCall(functionCall, password))
-      .map(({ sourceLoc, ret }) => ({ sourceLoc, ret: ret.v })),
-    xhrRequests: Array.from(xhrRequests),
-    mutationKeys: getMutationKeys(Array.from(mutationRecords)),
+    functionCalls: $Array$$map(
+      $Array$$filter([...functionCalls.values()], (functionCall) =>
+        mayBeScoreFunctionCall(functionCall, password)
+      ),
+      ({ sourceLoc, ret }) => ({ sourceLoc, ret: ret.v })
+    ),
+    xhrRequests: [...xhrRequests],
+    mutationKeys: getMutationKeys([...mutationRecords]),
   };
 }
 
