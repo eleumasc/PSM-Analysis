@@ -64,23 +64,19 @@ export default function cmdMeasure(args: {
     const accuracyEntries = _.map(scoreTypes, (scoreType) => {
       const scoreTypeIndex = scoreTypes.indexOf(scoreType);
       assert(scoreTypeIndex !== -1);
-      const extendedScoreEntries = _.map(
+      const scoreEntries = _.map(
         ROCKYOU2021_PASSWORD_ROWS,
-        ([password, frequency], rankIndex) => {
+        ([password, frequency], rankIndex): PSMAccuracyScoreEntry => {
           const scoreTableRow = scoreTable.find(
             ({ password: passwordSearched }) => passwordSearched === password
           );
           assert(scoreTableRow);
-          const evaluatedScore = scoreTableRow.scores[scoreTypeIndex];
+          const evaluatedScore =
+            scoreTableRow.scores[scoreTypeIndex] ?? -Infinity;
           return { frequency, referenceScore: rankIndex + 1, evaluatedScore };
         }
       );
-      const scores = _.map(extendedScoreEntries, (e) => e.evaluatedScore);
-      const scoreEntries = _.filter(
-        extendedScoreEntries,
-        (e): e is PSMAccuracyScoreEntry =>
-          typeof e.evaluatedScore !== "undefined"
-      );
+      const scores = _.map(scoreEntries, (e) => e.evaluatedScore);
       const accuracy = getPSMAccuracy(scoreEntries);
       return { scoreType, accuracy, scores };
     });
