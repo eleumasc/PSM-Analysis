@@ -1,5 +1,6 @@
 import currentTime from "../util/currentTime";
 import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
+import filterTestDomain from "../util/filterTestDomain";
 import installAnalysis from "../core/installAnalysis";
 import processDomainTaskQueue from "../util/processDomainTaskQueue";
 import useBrowser from "../util/useBrowser";
@@ -39,6 +40,7 @@ export default async function cmdQueryPSM(
   ) & {
     maxTasks: number;
     maxInstrumentWorkers: number;
+    testDomainName?: string;
   }
 ) {
   const dao = DataAccessObject.open();
@@ -51,7 +53,10 @@ export default async function cmdQueryPSM(
           PROBE_PSM_ANALYSIS_TYPE
         )
       : args.analysisId;
-  const todoDomains = dao.getTodoDomains(analysisId, QUERY_PSM_ANALYSIS_TYPE);
+  const todoDomains = filterTestDomain(
+    args.testDomainName,
+    dao.getTodoDomains(analysisId, QUERY_PSM_ANALYSIS_TYPE)
+  );
 
   console.log(`Analysis ID: ${analysisId}`);
   console.log(`${todoDomains.length} domains remaining`);
