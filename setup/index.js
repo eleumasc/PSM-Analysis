@@ -16,8 +16,6 @@ function isPasswordFieldInputEvent(e) {
   const target = e.target;
   if (target instanceof HTMLInputElement && target.type === "password") {
     switch (e.type) {
-      case "keydown":
-      case "keypress":
       case "input":
       case "keyup":
       case "change":
