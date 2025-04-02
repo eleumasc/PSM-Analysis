@@ -3,9 +3,9 @@ import getFormStructures, { FormStructure } from "./getFormStructures";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
 
-const SIGNUP_REGEXP: RegExp = /sign\s?up|register|create|join/i;
+const SIGNUP_REGEXP: RegExp = /sign([^0-9a-zA-Z]|\s)*up|regist(er|ration)?|join|(create|new)([^0-9a-zA-Z]|\s)*(new([^0-9a-zA-Z]|\s)*)?(acc(ount)?|us(e)?r|prof(ile)?)/i;
 
-const LOGIN_REGEXP: RegExp = /log\s?[io]n|sign\s?[io]n/i;
+const LOGIN_REGEXP: RegExp = /(log|sign)([^0-9a-zA-Z]|\s)*(in|on)|authenticat(e|ion)|\/(my([^0-9a-zA-Z]|\s)*)?(user|account|profile|dashboard)/i;
 
 const NAVIGATE_EXTRA_TIMEOUT_MS: number = 5000;
 

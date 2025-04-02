@@ -10,6 +10,7 @@ type FormStructureBase = {
   passwordInputs: number;
   checkboxInputs: number;
   radioInputs: number;
+  signupFormFieldsDetected: boolean;
 };
 
 export default async function getFormStructures(page: Page) {
@@ -37,6 +38,9 @@ export default async function getFormStructures(page: Page) {
 const getFormStructurePageFunction = (
   form: HTMLFormElement
 ): FormStructureBase => {
+  const SIGNUP_FORM_FIELDS_REGEXP: RegExp =
+    /full(\-|_|\s)*name|(f(irst|ore)?|m(iddle)?)(\-|_|\s)*name|(l(ast|st)?|s(u)?(r)?)(\-|_|\s)*name|prefix|month|day|year|birthdate|birthday|date(\-|_|\s)*of(\-|_|\s)*birth|(\-|_|\s)+age(\-|_|\s)+|gender|sex|addr|(post(al)?|zip)(\-|_|\s)*(code|no|num)|city|town|location|country|state|province|street|(building|bldng|flat|apartment|apt|home|house)(\-|_|\s)*(num|no)|card(\-|_|\s)*(no|num)|credit(\-|_|\s)*(no|num|card)|expire|expiration|sec(urity)?(\-|_|\s)*(no|num|cvv|code)|company|organi(z|s)ation|institut(e|ion)/i;
+
   // element visibility heuristics à la Playwright
   const isVisible = (element: HTMLElement) => {
     const boundingBox = element.getBoundingClientRect();
@@ -50,15 +54,13 @@ const getFormStructurePageFunction = (
     return true;
   };
 
+  let textInputs = 0;
+  let passwordInputs = 0;
+  let checkboxInputs = 0;
+  let radioInputs = 0;
   const names: Record<string, boolean> = {
     // @ts-ignore
     __proto__: null,
-  };
-  const formStructure: FormStructureBase = {
-    textInputs: 0,
-    passwordInputs: 0,
-    checkboxInputs: 0,
-    radioInputs: 0,
   };
   for (const inputElement of form.querySelectorAll("input")) {
     if (!isVisible(inputElement)) continue;
@@ -67,16 +69,16 @@ const getFormStructurePageFunction = (
       switch (type) {
         case "text":
         case "email":
-          formStructure.textInputs += 1;
+          textInputs += 1;
           break;
         case "password":
-          formStructure.passwordInputs += 1;
+          passwordInputs += 1;
           break;
         case "checkbox":
-          formStructure.checkboxInputs += 1;
+          checkboxInputs += 1;
           break;
         case "radio":
-          formStructure.radioInputs += 1;
+          radioInputs += 1;
           break;
       }
       if (name) {
@@ -84,5 +86,14 @@ const getFormStructurePageFunction = (
       }
     }
   }
-  return formStructure;
+  const signupFormFieldsDetected = SIGNUP_FORM_FIELDS_REGEXP.test(
+    form.innerHTML
+  );
+  return {
+    textInputs,
+    passwordInputs,
+    checkboxInputs,
+    radioInputs,
+    signupFormFieldsDetected,
+  };
 };

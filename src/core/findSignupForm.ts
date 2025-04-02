@@ -17,10 +17,9 @@ export default function findSignupForm(
       fs.radioInputs > 1
     ) {
       return true;
+    } else if (fs.signupFormFieldsDetected) {
+      return true;
     } else {
-      // TODO: using two sets of regular expressions (one for login and one
-      // for signup) for analyzing the HTML code and detecting elements that
-      // allow us to label the form accordingly.
       return false; // other
     }
   });
