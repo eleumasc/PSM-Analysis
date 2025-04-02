@@ -1,3 +1,4 @@
+import buckets from "../util/buckets";
 import currentTime from "../util/currentTime";
 import DataAccessObject, { DomainModel, Rowid } from "../core/DataAccessObject";
 import filterTestDomain from "../util/filterTestDomain";
@@ -26,6 +27,8 @@ export type QueryPSMResult = {
 };
 
 export const QUERY_PSM_ANALYSIS_TYPE = "query_psm";
+
+export const BUCKET_SIZE = 50;
 
 export default async function cmdQueryPSM(
   args: (
@@ -136,7 +139,11 @@ export async function runQueryPSM(
             });
           });
 
-        const ipfResult = await runAnalysis(getRockYou2021Passwords(), ipfHint);
+        let ipfResult: InputPasswordFieldResult = [];
+        for (const bucket of buckets(getRockYou2021Passwords(), BUCKET_SIZE)) {
+          const ipfResultBucket = await runAnalysis(bucket, ipfHint);
+          ipfResult = [...ipfResult, ...ipfResultBucket];
+        }
         return <QueryPSMResult>{ ipfResult };
       }
     )
