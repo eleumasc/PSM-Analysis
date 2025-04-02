@@ -185,4 +185,8 @@ async function main() {
     .strict().argv;
 }
 
+process.on("uncaughtException", (err, origin) => {
+  console.error("!!! UNCAUGHT EXCEPTION !!!", err, origin);
+});
+
 main();
