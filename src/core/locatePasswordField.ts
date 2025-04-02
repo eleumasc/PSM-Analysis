@@ -13,9 +13,13 @@ export type LocatePasswordFieldResult = {
 
 export default async function locatePasswordField(
   page: Page,
-  domainName: string,
-  signupPageUrl: string
+  options: {
+    domainName: string;
+    signupPageUrl: string;
+  }
 ): Promise<LocatePasswordFieldResult> {
+  const { signupPageUrl } = options;
+
   await page.goto(signupPageUrl);
   await timeout(NAVIGATE_EXTRA_TIMEOUT_MS);
   const formStructures = await getFormStructures(page);

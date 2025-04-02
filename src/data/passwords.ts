@@ -10,7 +10,7 @@ export type DetailedPassword = {
   hasSpecial: boolean;
 };
 
-export const PROBE_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
+export const TEST_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
 
 /**
  * - First group exception: known patterns, increasing entropy and length, fixed complexity
@@ -18,7 +18,7 @@ export const PROBE_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
  * - Increasing entropy and length in every group
  * - Increasing complexity
  */
-export const DETECT_PSM_DETAILED_PASSWORD_GROUPS = [
+export const PSM_DETECTION_DETAILED_PASSWORD_GROUPS = [
   [
     "a!1A",
     "aaa!1A",
@@ -72,8 +72,8 @@ export const DETECT_PSM_DETAILED_PASSWORD_GROUPS = [
   )
 );
 
-export function getDetectPSMPasswords(): string[] {
-  return DETECT_PSM_DETAILED_PASSWORD_GROUPS.flatMap((group) =>
+export function getPSMDetectionPasswords(): string[] {
+  return PSM_DETECTION_DETAILED_PASSWORD_GROUPS.flatMap((group) =>
     group.map(({ password }) => password)
   );
 }

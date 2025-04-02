@@ -3,7 +3,7 @@ import { InputPasswordFieldResult, Trace } from "./InputPasswordFieldResult";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
 
-const CAPTURE_TIMEOUT_MS: number = 2000;
+const CAPTURE_TIMEOUT_MS: number = 3000;
 const SHORT_TIMEOUT_MS: number = 500;
 
 export type InputPasswordFieldHint = {
@@ -25,7 +25,7 @@ export default async function inputPasswordField(
   const {
     passwordField,
     signupForm: { frame },
-  } = await locatePasswordField(page, domainName, signupPageUrl);
+  } = await locatePasswordField(page, { domainName, signupPageUrl });
 
   const capture = (password: string): Promise<void> =>
     frame.evaluate(`\$\$ADVICE.capture(${JSON.stringify(password)})`);

@@ -6,8 +6,8 @@ import processDomainTaskQueue from "../util/processDomainTaskQueue";
 import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
-import { getDetectPSMPasswords, PROBE_PASSWORD } from "../data/passwords";
 import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
+import { getPSMDetectionPasswords, TEST_PASSWORD } from "../data/passwords";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { mayDetectPSM } from "../core/detection/mayDetectPSM";
 import { SEARCH_SIGNUP_PAGE_ANALYSIS_TYPE } from "./cmdSearchSignupPage";
@@ -138,7 +138,7 @@ export async function runProbePSM(
             );
           });
 
-        const ipfResultPre = await runAnalysis([PROBE_PASSWORD]);
+        const ipfResultPre = await runAnalysis([TEST_PASSWORD]);
         const ipfHint = mayDetectPSM(
           getIPFAbstractResultFromIPFResult(ipfResultPre)
         );
@@ -146,7 +146,7 @@ export async function runProbePSM(
           return <ProbePSMResult>{ ipfResultPre };
         }
         const ipfResult = await runAnalysis(
-          [...getDetectPSMPasswords(), PROBE_PASSWORD],
+          [...getPSMDetectionPasswords(), TEST_PASSWORD],
           ipfHint
         );
         return <ProbePSMResult>{ ipfResultPre, ipfResult, ipfHint };

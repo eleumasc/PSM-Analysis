@@ -1,8 +1,8 @@
 import _ from "lodash";
 import combinations from "../../util/combinations";
-import { DETECT_PSM_DETAILED_PASSWORD_GROUPS } from "../../data/passwords";
 import { getScoreCandidatesFromPFIAbstractResult } from "./ScoreCandidate";
 import { isAscending, isConstant, isDescending } from "../../util/sorting";
+import { PSM_DETECTION_DETAILED_PASSWORD_GROUPS } from "../../data/passwords";
 import {
   reDigit,
   reLower,
@@ -49,7 +49,7 @@ export function detectPSM(
       );
     })
     .filter(({ occurrences }) =>
-      DETECT_PSM_DETAILED_PASSWORD_GROUPS.every((group) => {
+      PSM_DETECTION_DETAILED_PASSWORD_GROUPS.every((group) => {
         const values = group
           .flatMap((detailedPassword) => {
             const found = occurrences.find(
