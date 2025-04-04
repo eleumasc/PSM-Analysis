@@ -1,71 +1,125 @@
 import _ from "lodash";
 import assert from "assert";
-import DataAccessObject, { checkAnalysisType } from "../core/DataAccessObject";
+import ConfusionMatrix from "../util/ConfusionMatrix";
+import toSimplifiedURL from "../util/toSimplifiedURL";
 import { Completion, isFailure } from "../util/Completion";
-import { detectPSM } from "../core/detection/detectPSM";
-import { getIPFAbstractResultFromIPFResult } from "../core/detection/InputPasswordFieldAbstractResult";
-import { getScoreTable } from "../core/detection/ScoreTable";
-import { PROBE_PSM_ANALYSIS_TYPE, ProbePSMResult } from "./cmdProbePSM";
-import { QUERY_PSM_ANALYSIS_TYPE, QueryPSMResult } from "./cmdQueryPSM";
-import { ROCKYOU2021_PASSWORD_ROWS } from "../data/rockyou2021";
+import { detectPSM } from "../core/psm/detectPSM";
+import { getPSMAccuracy, PSMAccuracyScoreEntry } from "../core/psm/PSMAccuracy";
+import { getScoreTable } from "../core/psm/ScoreTable";
+import { openDoCo } from "../core/DoCo";
+import { PSM_ANALYSIS_COLLECTION_TYPE, PSMAnalysisResult } from "./cmdAnalyze";
+import { ROCKYOU2021_PASSWORDS_ROWS } from "../data/rockyou2021";
+import { SearchRegisterPageResult } from "../core/searchRegisterPage";
+import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
 import {
-  getPSMAccuracy,
-  PSMAccuracyScoreEntry,
-} from "../core/detection/PSMAccuracy";
+  AbstractCallType,
+  getIPFAbstractResultFromIPFResult,
+} from "../core/psm/InputPasswordFieldAbstractResult";
+
+type PSMRegisterPage = {
+  registerPageKey: string;
+  maxAccuracyPsfDetail: PSFDetail;
+};
+
+type PSFDetail = {
+  scoreType: AbstractCallType;
+  scores: number[];
+  accuracy: number;
+};
 
 export default function cmdMeasure(args: {
-  queryAnalysisId: number;
+  psmAnalysisId: number;
   dbFilepath: string | undefined;
 }) {
-  const dao = DataAccessObject.open(args.dbFilepath);
+  const dc = openDoCo(args.dbFilepath);
 
-  const { queryAnalysisId } = args;
-  const queryAnalysisModel = dao.getAnalysis(queryAnalysisId);
-  checkAnalysisType(queryAnalysisModel, QUERY_PSM_ANALYSIS_TYPE);
-  const probeAnalysisId = queryAnalysisModel.parentAnalysisId!;
-  const probeAnalysisModel = dao.getAnalysis(probeAnalysisId);
-  checkAnalysisType(probeAnalysisModel, PROBE_PSM_ANALYSIS_TYPE);
+  const psmAnalysisCollection = dc.findCollectionById(args.psmAnalysisId);
+  assert(psmAnalysisCollection, PSM_ANALYSIS_COLLECTION_TYPE);
+  const registrationPagesCollection = dc.findCollectionById(
+    psmAnalysisCollection.parentId!
+  );
 
-  const domainAccuracyEntries = [];
+  // basic stats
 
-  for (const domainModel of dao.getDoneDomains(queryAnalysisId)) {
-    const queryCompletion = dao.getAnalysisResult(
-      queryAnalysisId,
-      domainModel.id
-    ) as Completion<QueryPSMResult>;
-    if (isFailure(queryCompletion)) continue;
+  let analyzedSitesCount = 0;
+  let accessedSitesCount = 0;
+  let registerPagesSitesCount = 0;
+  let registerPagesCount = 0;
+
+  const registerPagesKeySet = new Set<string>();
+  for (const document of dc.getDocumentsByCollection(
+    registrationPagesCollection.id
+  )) {
+    analyzedSitesCount += 1;
+
+    const completion = dc.getDocumentData(
+      document.id
+    ) as Completion<SearchRegisterPageResult>;
+
+    if (isFailure(completion)) continue;
+    accessedSitesCount += 1;
+
     const {
-      value: { ipfResult: queryIpfResult },
-    } = queryCompletion;
+      value: { registerPageUrl },
+    } = completion;
+    if (registerPageUrl === null) continue;
+    registerPagesSitesCount += 1;
 
-    const probeCompletion = dao.getAnalysisResult(
-      probeAnalysisId,
-      domainModel.id
-    ) as Completion<ProbePSMResult>;
-    if (isFailure(probeCompletion)) continue;
+    registerPagesKeySet.add(toSimplifiedURL(registerPageUrl).toString());
+    registerPagesCount = registerPagesKeySet.size;
+  }
+
+  // PSM analysis
+
+  let analyzedRegisterPagesCount = 0;
+  const psmDetectedConfusionMatrix = new ConfusionMatrix<string>();
+  const psmRegisterPages: PSMRegisterPage[] = [];
+
+  for (const document of dc.getDocumentsByCollection(
+    psmAnalysisCollection.id
+  )) {
+    const { name: registerPageKey } = document;
+
+    const completion = dc.getDocumentData(
+      document.id
+    ) as Completion<PSMAnalysisResult>;
+
+    if (isFailure(completion)) continue;
+    analyzedRegisterPagesCount += 1;
+
     const {
-      value: { ipfResult: probeIpfResult },
-    } = probeCompletion;
-    assert(probeIpfResult);
+      value: { detectIpfResult, analysisIpfResult },
+    } = completion;
 
-    const queryAbstractResult =
-      getIPFAbstractResultFromIPFResult(queryIpfResult);
-    const probeAbstractResult =
-      getIPFAbstractResultFromIPFResult(probeIpfResult);
+    if (!detectIpfResult) continue;
+    const detectAbstractResult =
+      getIPFAbstractResultFromIPFResult(detectIpfResult);
 
-    const psmDetected = detectPSM(probeAbstractResult);
-    assert(psmDetected);
+    const psmDetected = detectPSM(detectAbstractResult);
+    if (!psmDetected) continue;
+
+    if (TRUTH.has(registerPageKey)) {
+      const truth = TRUTH.get(registerPageKey)!;
+      psmDetectedConfusionMatrix.addValue(
+        registerPageKey,
+        Boolean(psmDetected),
+        truth
+      );
+    }
+
+    if (!analysisIpfResult) continue;
+    const analysisAbstractResult =
+      getIPFAbstractResultFromIPFResult(analysisIpfResult);
 
     const { scoreTypes } = psmDetected;
+    const scoreTable = getScoreTable(analysisAbstractResult, scoreTypes);
 
-    const scoreTable = getScoreTable(queryAbstractResult, scoreTypes);
-
-    const accuracyEntries = _.map(scoreTypes, (scoreType) => {
+    const psfDetails = _.map(scoreTypes, (scoreType): PSFDetail => {
       const scoreTypeIndex = scoreTypes.indexOf(scoreType);
       assert(scoreTypeIndex !== -1);
       const scoreEntries = _.map(
-        ROCKYOU2021_PASSWORD_ROWS,
+        ROCKYOU2021_PASSWORDS_ROWS,
         ([password, frequency], rankIndex): PSMAccuracyScoreEntry => {
           const scoreTableRow = scoreTable.find(
             ({ password: passwordSearched }) => passwordSearched === password
@@ -78,41 +132,40 @@ export default function cmdMeasure(args: {
       );
       const scores = _.map(scoreEntries, (e) => e.evaluatedScore);
       const accuracy = getPSMAccuracy(scoreEntries);
-      return { scoreType, accuracy, scores };
+      return { scoreType, scores, accuracy };
     });
 
-    const maxAccuracyEntry = _.maxBy(
-      accuracyEntries,
+    const maxAccuracyPsfDetail = _.maxBy(
+      psfDetails,
       ({ accuracy }) => accuracy
     );
-    if (!maxAccuracyEntry) continue;
+    if (!maxAccuracyPsfDetail) continue;
 
-    const domainAccuracyEntry = {
-      domain: domainModel.name,
-      maxAccuracyEntry,
-      accuracyEntries,
+    const psmRegisterPage = <PSMRegisterPage>{
+      registerPageKey,
+      maxAccuracyPsfDetail,
     };
-    domainAccuracyEntries.push(domainAccuracyEntry);
+    psmRegisterPages.push(psmRegisterPage);
   }
 
-  const dedupScoreFunctionGroups = _.values(
-    _.groupBy(domainAccuracyEntries, ({ maxAccuracyEntry: { scores } }) =>
+  const psmLibraries = _.values(
+    _.groupBy(psmRegisterPages, ({ maxAccuracyPsfDetail: { scores } }) =>
       JSON.stringify(scores)
-    )
-  ).map((group) =>
-    group.map(
-      ({ domain, maxAccuracyEntry: { scoreType, accuracy, scores } }) => ({
-        domain,
-        maxAccuracyEntry: { scoreType, accuracy, scores },
-      })
     )
   );
 
   const report = {
-    dedupScoreFunctionGroups,
+    analyzedSitesCount,
+    accessedSitesCount,
+    registerPagesSitesCount,
+    registerPagesCount,
+    analyzedRegisterPagesCount,
+    psmDetectedConfusionMatrix: psmDetectedConfusionMatrix.get(),
+    psmRegisterPages,
+    psmLibraries,
   };
 
-  writeFileSync("output-measure.json", JSON.stringify(report, undefined, 2));
+  writeFileSync("output.json", JSON.stringify(report));
 
   process.exit(0);
 }

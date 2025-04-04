@@ -1,9 +1,7 @@
-import cmdDetectPSM from "./commands/cmdDetectPSM";
-import cmdLoadDomainList from "./commands/cmdLoadDomainList";
+import cmdAnalyze from "./commands/cmdAnalyze";
+import cmdLoadSiteList from "./commands/cmdLoadSiteList";
 import cmdMeasure from "./commands/cmdMeasure";
-import cmdProbePSM from "./commands/cmdProbePSM";
-import cmdQueryPSM from "./commands/cmdQueryPSM";
-import cmdSearchSignupPage from "./commands/cmdSearchSignupPage";
+import cmdSearchRegisterPage from "./commands/cmdSearchRegisterPage";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -12,24 +10,24 @@ async function main() {
 
   yargs(hideBin(process.argv))
     .command(
-      "load-domain-list <filepath>",
-      "Load a domain list (Tranco) from a file",
+      "load-site-list <filepath>",
+      "Load a site list (Tranco) from a file",
       (yargs) =>
         yargs.positional("filepath", {
-          describe: "Path to the file containing the domain list",
+          describe: "Path to the file containing the site list",
           type: "string",
           demandOption: true,
         }),
-      ({ filepath }) => cmdLoadDomainList(filepath)
+      ({ filepath }) => cmdLoadSiteList(filepath)
     )
 
     .command(
-      "search-signup-page <domain-list-id>",
-      "Create a new search signup page analysis",
+      "search-register-page <sites-id>",
+      "Create a new search register page analysis",
       (yargs) =>
         yargs
-          .positional("domain-list-id", {
-            describe: "ID of the domain list to search",
+          .positional("sites-id", {
+            describe: "ID of the site list",
             type: "number",
             demandOption: true,
           })
@@ -37,14 +35,14 @@ async function main() {
             type: "number",
             default: 1,
           }),
-      (args) => cmdSearchSignupPage({ action: "create", ...args })
+      (args) => cmdSearchRegisterPage({ action: "create", ...args })
     )
     .command(
-      "search-signup-page:resume <analysis-id>",
-      "Resume an existing search signup page analysis",
+      "search-register-page:resume <output-id>",
+      "Resume an existing search register page analysis",
       (yargs) =>
         yargs
-          .positional("analysis-id", {
+          .positional("output-id", {
             describe: "ID of the analysis to resume",
             type: "number",
             demandOption: true,
@@ -53,39 +51,16 @@ async function main() {
             type: "number",
             default: 1,
           }),
-      (args) => cmdSearchSignupPage({ action: "resume", ...args })
+      (args) => cmdSearchRegisterPage({ action: "resume", ...args })
     )
 
     .command(
-      "probe-psm <parent-analysis-id>",
-      "Create a new input password field analysis",
+      "analyze <register-pages-id>",
+      "Create a new PSM analysis",
       (yargs) =>
         yargs
-          .positional("parent-analysis-id", {
-            describe: "ID of the signup page search analysis to search",
-            type: "number",
-            demandOption: true,
-          })
-          .option("max-tasks", {
-            type: "number",
-            default: 1,
-          })
-          .option("max-instrument-workers", {
-            type: "number",
-            default: 1,
-          })
-          .option("test-domain-name", {
-            type: "string",
-          }),
-      (args) => cmdProbePSM({ action: "create", ...args })
-    )
-    .command(
-      "probe-psm:resume <analysis-id>",
-      "Resume an existing input password field analysis",
-      (yargs) =>
-        yargs
-          .positional("analysis-id", {
-            describe: "ID of the analysis to resume",
+          .positional("register-pages-id", {
+            describe: "ID of the register page search analysis",
             type: "number",
             demandOption: true,
           })
@@ -97,55 +72,14 @@ async function main() {
             type: "number",
             default: 1,
           }),
-      (args) => cmdProbePSM({ action: "resume", ...args })
-    )
-
-    .command(
-      "detect-psm <probe-analysis-id>",
-      "Detect PSM from an input password field analysis",
-      (yargs) =>
-        yargs
-          .positional("probe-analysis-id", {
-            type: "number",
-            describe:
-              "ID of the password input field analysis to detect PSM from",
-            demandOption: true,
-          })
-          .option("db-filepath", {
-            type: "string",
-          }),
-      (args) => cmdDetectPSM(args)
-    )
-
-    .command(
-      "query-psm <parent-analysis-id>",
-      "Create a new query PSM analysis",
-      (yargs) =>
-        yargs
-          .positional("parent-analysis-id", {
-            describe: "ID of the input password field analysis to search",
-            type: "number",
-            demandOption: true,
-          })
-          .option("max-tasks", {
-            type: "number",
-            default: 1,
-          })
-          .option("max-instrument-workers", {
-            type: "number",
-            default: 1,
-          })
-          .option("test-domain-name", {
-            type: "string",
-          }),
-      (args) => cmdQueryPSM({ action: "create", ...args })
+      (args) => cmdAnalyze({ action: "create", ...args })
     )
     .command(
-      "query-psm:resume <analysis-id>",
-      "Resume an existing query PSM analysis",
+      "analyze:resume <output-id>",
+      "Resume an existing PSM analysis",
       (yargs) =>
         yargs
-          .positional("analysis-id", {
+          .positional("output-id", {
             describe: "ID of the analysis to resume",
             type: "number",
             demandOption: true,
@@ -158,17 +92,17 @@ async function main() {
             type: "number",
             default: 1,
           }),
-      (args) => cmdQueryPSM({ action: "resume", ...args })
+      (args) => cmdAnalyze({ action: "resume", ...args })
     )
 
     .command(
-      "measure <query-analysis-id>",
-      "Detect PSM from a query PSM analysis",
+      "measure <psm-analysis-id>",
+      "Detect PSM from a PSM analysis",
       (yargs) =>
         yargs
-          .positional("query-analysis-id", {
+          .positional("psm-analysis-id", {
             type: "number",
-            describe: "ID of the query PSM analysis to measure from",
+            describe: "ID of the PSM analysis",
             demandOption: true,
           })
           .option("db-filepath", {

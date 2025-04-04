@@ -1,12 +1,12 @@
 import { FormStructure } from "./getFormStructures";
 
-// signup form detection à la CookieHunter
-export default function findSignupForm(
+// register form detection à la CookieHunter
+export default function findRegisterForm(
   formStructures: FormStructure[]
 ): FormStructure | undefined {
   return formStructures.find((fs) => {
     if (fs.passwordInputs === 0) {
-      return false; // neither signup nor login
+      return false; // neither register nor login
     } else if (fs.passwordInputs > 1) {
       return true;
     } else if (fs.textInputs === 1) {
@@ -17,7 +17,7 @@ export default function findSignupForm(
       fs.radioInputs > 1
     ) {
       return true;
-    } else if (fs.signupFormFieldsDetected) {
+    } else if (fs.registerFormFieldsDetected) {
       return true;
     } else {
       return false; // other

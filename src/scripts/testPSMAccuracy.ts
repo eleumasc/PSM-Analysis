@@ -1,5 +1,5 @@
 import zxcvbn from "zxcvbn";
-import { getPSMAccuracy } from "../core/detection/PSMAccuracy";
+import { getPSMAccuracy } from "../core/psm/PSMAccuracy";
 import { readFileSync } from "fs";
 
 function getZxcvbnScore(password: string) {

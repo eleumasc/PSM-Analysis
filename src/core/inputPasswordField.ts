@@ -14,18 +14,17 @@ export type InputPasswordFieldHint = {
 export default async function inputPasswordField(
   page: Page,
   options: {
-    domainName: string;
-    signupPageUrl: string;
+    registerPageUrl: string;
     passwordList: string[];
     hint?: InputPasswordFieldHint;
   }
 ): Promise<InputPasswordFieldResult> {
-  const { domainName, signupPageUrl, passwordList, hint } = options;
+  const { registerPageUrl, passwordList, hint } = options;
 
   const {
     passwordField,
-    signupForm: { frame },
-  } = await locatePasswordField(page, { domainName, signupPageUrl });
+    registerForm: { frame },
+  } = await locatePasswordField(page, { registerPageUrl });
 
   const capture = (password: string): Promise<void> =>
     frame.evaluate(`\$\$ADVICE.capture(${JSON.stringify(password)})`);

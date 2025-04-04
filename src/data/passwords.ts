@@ -1,24 +1,14 @@
-import { reDigit, reSpecial, reUpper } from "./regexps";
-import { ROCKYOU2021_PASSWORD_ROWS } from "./rockyou2021";
-
-export type DetailedPassword = {
-  password: string;
-  hasPattern: boolean;
-  length: number;
-  hasUpper: boolean;
-  hasDigit: boolean;
-  hasSpecial: boolean;
-};
+import { ROCKYOU2021_PASSWORDS_ROWS } from "./rockyou2021";
 
 export const TEST_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
 
 /**
- * - First group exception: known patterns, increasing entropy and length, fixed complexity
+ * - First sequence exception: known patterns, increasing entropy and length, fixed complexity
  * - Neither dictionary words nor known patterns (guessability depends exclusively on entropy, bruteforce required)
- * - Increasing entropy and length in every group
+ * - Increasing entropy and length in every sequence
  * - Increasing complexity
  */
-export const PSM_DETECTION_DETAILED_PASSWORD_GROUPS = [
+export const MONOTONE_TEST_PASSWORDS_SEQUENCES: string[][] = [
   [
     "a!1A",
     "aaa!1A",
@@ -59,25 +49,12 @@ export const PSM_DETECTION_DETAILED_PASSWORD_GROUPS = [
     "vshbncqaj!1A",
     "vshbncqajpzke!1A",
   ],
-].map((group, groupIndex) =>
-  group.map(
-    (password): DetailedPassword => ({
-      password,
-      hasPattern: groupIndex === 0,
-      length: password.length,
-      hasUpper: reUpper().test(password),
-      hasDigit: reDigit().test(password),
-      hasSpecial: reSpecial().test(password),
-    })
-  )
-);
+];
 
-export function getPSMDetectionPasswords(): string[] {
-  return PSM_DETECTION_DETAILED_PASSWORD_GROUPS.flatMap((group) =>
-    group.map(({ password }) => password)
-  );
+export function getMonotoneTestPasswords(): string[] {
+  return MONOTONE_TEST_PASSWORDS_SEQUENCES.flat();
 }
 
 export function getRockYou2021Passwords(): string[] {
-  return ROCKYOU2021_PASSWORD_ROWS.map(([password]) => password);
+  return ROCKYOU2021_PASSWORDS_ROWS.map(([password]) => password);
 }

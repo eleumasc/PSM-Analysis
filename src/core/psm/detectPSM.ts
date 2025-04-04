@@ -2,7 +2,7 @@ import _ from "lodash";
 import combinations from "../../util/combinations";
 import { getScoreCandidatesFromPFIAbstractResult } from "./ScoreCandidate";
 import { isAscending, isConstant, isDescending } from "../../util/sorting";
-import { PSM_DETECTION_DETAILED_PASSWORD_GROUPS } from "../../data/passwords";
+import { MONOTONE_TEST_PASSWORDS_SEQUENCES } from "../../data/passwords";
 import {
   reDigit,
   reLower,
@@ -49,12 +49,10 @@ export function detectPSM(
       );
     })
     .filter(({ occurrences }) =>
-      PSM_DETECTION_DETAILED_PASSWORD_GROUPS.every((group) => {
+      MONOTONE_TEST_PASSWORDS_SEQUENCES.every((group) => {
         const values = group
-          .flatMap((detailedPassword) => {
-            const found = occurrences.find(
-              (occ) => occ.password === detailedPassword.password
-            );
+          .flatMap((password) => {
+            const found = occurrences.find((occ) => occ.password === password);
             return found ? [found] : [];
           })
           .map(({ value }) => value);

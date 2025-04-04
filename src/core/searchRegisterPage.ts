@@ -1,4 +1,4 @@
-import findSignupForm from "./findSignupForm";
+import findRegisterForm from "./findRegisterForm";
 import getFormStructures, { FormStructure } from "./getFormStructures";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
@@ -38,20 +38,20 @@ type LogRecord = {
     }
 );
 
-export type SearchSignupPageResult = {
-  signupPageUrl: string | null;
+export type SearchRegisterPageResult = {
+  registerPageUrl: string | null;
   logRecords: LogRecord[];
 };
 
-// signup page search à la Alroomi et Li
-export default async function searchSignupPage(
+// register page search à la Alroomi et Li
+export default async function searchRegisterPage(
   page: Page,
-  domainName: string
-): Promise<SearchSignupPageResult> {
+  site: string
+): Promise<SearchRegisterPageResult> {
   const logRecords: LogRecord[] = [];
 
-  function createResult(signupPageUrl: string | null): SearchSignupPageResult {
-    return { signupPageUrl, logRecords };
+  function createResult(registerPageUrl: string | null): SearchRegisterPageResult {
+    return { registerPageUrl, logRecords };
   }
 
   async function navigate(url: string) {
@@ -93,18 +93,18 @@ export default async function searchSignupPage(
     for (const { url: candidateUrl } of candidateEntries) {
       try {
         const { formStructures } = await navigate(candidateUrl);
-        if (findSignupForm(formStructures)) {
+        if (findRegisterForm(formStructures)) {
           return candidateUrl;
         } /* else if (detectLoginPage(formStructures)) */ else {
           if (ttl > 0) {
-            const signupPageUrl = await crawl(
+            const registerPageUrl = await crawl(
               (
                 await collectCandidateEntries(SIGNUP_REGEXP)
               ).slice(0, MAX_CANDIDATE_URLS_PER_PAGE),
               ttl - 1
             );
-            if (signupPageUrl) {
-              return signupPageUrl;
+            if (registerPageUrl) {
+              return registerPageUrl;
             }
           }
         }
@@ -115,38 +115,38 @@ export default async function searchSignupPage(
     return null;
   }
 
-  // (1) We search for a signup form on the domain’s landing page.
-  // NOTE: here we also check whether the domain is accessible
+  // (1) We search for a register form on the site’s landing page.
+  // NOTE: here we also check whether the site is accessible
   {
     logRecords.push({ type: "init-step", step: 1 });
     const { targetUrl: landingPageUrl, formStructures } = await navigate(
-      `http://${domainName}/`
+      `http://${site}/`
     );
-    if (findSignupForm(formStructures)) {
+    if (findRegisterForm(formStructures)) {
       return createResult(landingPageUrl);
     }
   }
 
   // (2) We next crawl URL links found on the landing page that contain common
-  // keywords for account signup (or login) URLs.
+  // keywords for account register (or login) URLs.
   {
     logRecords.push({ type: "init-step", step: 2 });
     const candidateEntries = [
       ...(await collectCandidateEntries(SIGNUP_REGEXP)),
       ...(await collectCandidateEntries(LOGIN_REGEXP)),
     ];
-    const signupPageUrl = await crawl(
+    const registerPageUrl = await crawl(
       candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
     );
-    if (signupPageUrl) {
-      return createResult(signupPageUrl);
+    if (registerPageUrl) {
+      return createResult(registerPageUrl);
     }
   }
 
-  // (3) Query a search engine (Bing) for the domain’s account signup pages.
+  // (3) Query a search engine (Bing) for the site’s account register pages.
   {
     logRecords.push({ type: "init-step", step: 3 });
-    await page.goto(`https://www.bing.com/search?q=${domainName}+signup`);
+    await page.goto(`https://www.bing.com/search?q=${site}+register`);
     const candidateEntries = (
       await page
         .locator("#b_results > li.b_algo h2 a")
@@ -154,11 +154,11 @@ export default async function searchSignupPage(
           anchors.map((a) => (a as HTMLAnchorElement).href)
         )
     ).map((url) => ({ url }));
-    const signupPageUrl = await crawl(
+    const registerPageUrl = await crawl(
       candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
     );
-    if (signupPageUrl) {
-      return createResult(signupPageUrl);
+    if (registerPageUrl) {
+      return createResult(registerPageUrl);
     }
   }
 

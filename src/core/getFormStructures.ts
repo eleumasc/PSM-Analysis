@@ -10,7 +10,7 @@ type FormStructureBase = {
   passwordInputs: number;
   checkboxInputs: number;
   radioInputs: number;
-  signupFormFieldsDetected: boolean;
+  registerFormFieldsDetected: boolean;
 };
 
 export default async function getFormStructures(page: Page) {
@@ -86,7 +86,7 @@ const getFormStructurePageFunction = (
       }
     }
   }
-  const signupFormFieldsDetected = SIGNUP_FORM_FIELDS_REGEXP.test(
+  const registerFormFieldsDetected = SIGNUP_FORM_FIELDS_REGEXP.test(
     form.innerHTML
   );
   return {
@@ -94,6 +94,6 @@ const getFormStructurePageFunction = (
     passwordInputs,
     checkboxInputs,
     radioInputs,
-    signupFormFieldsDetected,
+    registerFormFieldsDetected,
   };
 };
