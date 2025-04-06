@@ -148,7 +148,7 @@ export default function cmdMeasure(args: {
     psmRegisterPages.push(psmRegisterPage);
   }
 
-  const psmLibraries = _.values(
+  const psmClusters = _.values(
     _.groupBy(psmRegisterPages, ({ maxAccuracyPsfDetail: { scores } }) =>
       JSON.stringify(scores)
     )
@@ -162,7 +162,7 @@ export default function cmdMeasure(args: {
     analyzedRegisterPagesCount,
     psmDetectedConfusionMatrix: psmDetectedConfusionMatrix.get(),
     psmRegisterPages,
-    psmLibraries,
+    psmClusters,
   };
 
   writeFileSync("output.json", JSON.stringify(report));

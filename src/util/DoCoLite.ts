@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS collections (
   name TEXT NOT NULL,
   meta JSON,
 
+  UNIQUE (id, name),
   FOREIGN KEY (parent) REFERENCES collections (id) ON DELETE CASCADE
 );
 
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS documents (
   name TEXT NOT NULL,
   data JSON NOT NULL,
 
+  UNIQUE (collection, name),
   FOREIGN KEY (collection) REFERENCES collections (id) ON DELETE CASCADE
 );
 `;

@@ -31,6 +31,13 @@ export type PSMAnalysisResult = {
   analysisIpfResult?: InputPasswordFieldResult;
 };
 
+export type ChunkedPSMAnalysisResult = {
+  testChunkExists?: boolean;
+  detectChunkExists?: boolean;
+  analysisChunkExists?: boolean;
+  analysisChunksCount?: number;
+};
+
 type RegisterPageEntry = {
   key: string;
   url: string;
@@ -107,7 +114,7 @@ export default async function cmdAnalyze(
   );
 
   console.log(`Output ID: ${outputCollection.id}`);
-  console.log(`${tbdRegisterPageEntries.length} sites remaining`);
+  console.log(`${tbdRegisterPageEntries.length} register pages remaining`);
 
   await processTaskQueue(
     tbdRegisterPageEntries,
@@ -116,6 +123,20 @@ export default async function cmdAnalyze(
       const { key: registerPageKey } = registerPageEntry;
       console.log(`begin analysis ${registerPageKey} [${queueIndex}]`);
       const result = await runAnalyze(registerPageEntry, {
+        chunkManager: {
+          async get(key) {
+            let document;
+            try {
+              document = dc.findDocumentByName(outputCollection.id, key);
+            } catch {
+              return;
+            }
+            return dc.getDocumentData(document.id);
+          },
+          async set(key, value) {
+            dc.createDocument(outputCollection.id, key, value);
+          },
+        },
         maxInstrumentWorkers: args.maxInstrumentWorkers,
       });
       console.log(`end analysis ${registerPageKey} [${queueIndex}]`);
@@ -129,6 +150,10 @@ export default async function cmdAnalyze(
 export async function runAnalyze(
   registerPageEntry: RegisterPageEntry,
   options: {
+    chunkManager: {
+      get: (key: string) => Promise<any | undefined>;
+      set: (key: string, value: any) => Promise<void>;
+    };
     maxInstrumentWorkers: number;
   }
 ) {
@@ -138,11 +163,18 @@ export async function runAnalyze(
     useWorker(
       { maxWorkers: options.maxInstrumentWorkers },
       async (workerExec) => {
-        const runIpf = (
+        const runIpf = async (
+          chunkKeyPrefix: string,
           passwordList: string[],
           hint?: InputPasswordFieldHint
-        ) =>
-          useBrowser(async (browser) => {
+        ): Promise<InputPasswordFieldResult> => {
+          const chunkKey = `${chunkKeyPrefix}:${registerPageEntry.key}`;
+          const savedIpfResult = await options.chunkManager.get(chunkKey);
+          if (savedIpfResult) {
+            return savedIpfResult;
+          }
+
+          const computedIpfResult = await useBrowser(async (browser) => {
             const page = await browser.newPage();
             await installAnalysis(page, { workerExec });
             return bomb(
@@ -155,18 +187,22 @@ export async function runAnalyze(
               RUN_IPF_TIMEOUT_MS
             );
           });
+          await options.chunkManager.set(chunkKey, computedIpfResult);
+          return computedIpfResult;
+        };
 
-        const testIpfResult = await runIpf([TEST_PASSWORD]);
+        const testIpfResult = await runIpf("test", [TEST_PASSWORD]);
         const ipfHint = mayDetectPSM(
           getIPFAbstractResultFromIPFResult(testIpfResult)
         );
         if (!ipfHint) {
-          return <PSMAnalysisResult>{
-            testIpfResult,
+          return <ChunkedPSMAnalysisResult>{
+            testChunkExists: true,
           };
         }
 
         const detectIpfResult = await runIpf(
+          "detect",
           [...getMonotoneTestPasswords(), TEST_PASSWORD],
           ipfHint
         );
@@ -174,22 +210,28 @@ export async function runAnalyze(
           getIPFAbstractResultFromIPFResult(detectIpfResult)
         );
         if (!psmDetected) {
-          return <PSMAnalysisResult>{
-            testIpfResult,
-            detectIpfResult,
+          return <ChunkedPSMAnalysisResult>{
+            testChunkExists: true,
+            detectChunkExists: true,
           };
         }
 
+        const enumeratedBuckets = buckets(
+          getRockYou2021Passwords(),
+          BUCKET_SIZE
+        ).map((x, i): [typeof x, number] => [x, i]);
+
         let analysisIpfResult: InputPasswordFieldResult = [];
-        for (const bucket of buckets(getRockYou2021Passwords(), BUCKET_SIZE)) {
-          const ipfResultBucket = await runIpf(bucket, ipfHint);
-          analysisIpfResult = [...analysisIpfResult, ...ipfResultBucket];
+        for (const [bucket, i] of enumeratedBuckets) {
+          const ipfResult = await runIpf(`analysis${i}`, bucket, ipfHint);
+          analysisIpfResult = [...analysisIpfResult, ...ipfResult];
         }
 
-        return <PSMAnalysisResult>{
-          testIpfResult,
-          detectIpfResult,
-          analysisIpfResult,
+        return <ChunkedPSMAnalysisResult>{
+          testChunkExists: true,
+          detectChunkExists: true,
+          analysisChunkExists: true,
+          analysisChunksCount: enumeratedBuckets.length,
         };
       }
     )

@@ -22,6 +22,14 @@ export const Failure = (error?: Failure["error"]): Failure => {
   return { status: "failure", error };
 };
 
+Failure.from = (e: any): Failure => {
+  return Failure(
+    e instanceof Error
+      ? { type: e.name, message: String(e) }
+      : { type: "string", message: String(e) }
+  );
+};
+
 export const isSuccess = <T>(
   completion: Completion<T>
 ): completion is Success<T> => {
@@ -41,10 +49,6 @@ export const toCompletion = async <T>(
     const value = await callback();
     return Success(value);
   } catch (e) {
-    return Failure(
-      e instanceof Error
-        ? { type: e.name, message: String(e) }
-        : { type: "string", message: String(e) }
-    );
+    return Failure.from(e);
   }
 };
