@@ -33,21 +33,21 @@ export default async function cmdSearchRegisterPage(
     args.action === "create"
       ? dc.createCollection(
           (() => {
-            const sitesCollection = dc.findCollectionById(args.sitesId);
+            const sitesCollection = dc.getCollectionById(args.sitesId);
             assert(sitesCollection.meta.type === SITES_COLLECTION_TYPE);
             return sitesCollection.id;
           })(),
           currentTime().toString(),
           { type: REGISTER_PAGES_COLLECTION_TYPE }
         )
-      : dc.findCollectionById(args.outputId);
+      : dc.getCollectionById(args.outputId);
   assert(outputCollection.meta.type === REGISTER_PAGES_COLLECTION_TYPE);
   const sitesCollectionId = outputCollection.parentId!;
 
   const tbdSites = _.difference(
     // all sites
     dc.getDocumentData(
-      dc.findDocumentByName(sitesCollectionId, SITES_DOCUMENT_NAME).id
+      dc.getDocumentByName(sitesCollectionId, SITES_DOCUMENT_NAME).id
     ) as string[],
     // processed sites
     dc

@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS documents (
 `;
 
 export default class DoCoLite {
-  constructor(protected readonly db: Database) {}
+  constructor(readonly db: Database) {}
 
   static open(dbFilepath?: string): DoCoLite {
     const db = new DB(dbFilepath);
@@ -43,10 +43,10 @@ export default class DoCoLite {
     );
     const id = stmt.run([parentId, name, meta ? JSON.stringify(meta) : null])
       .lastInsertRowid as number;
-    return this.findCollectionById(id);
+    return this.getCollectionById(id);
   }
 
-  findCollectionById(id: number): Collection {
+  getCollectionById(id: number): Collection {
     const { db } = this;
     const stmt = db.prepare("SELECT * FROM collections WHERE id = ?");
     const row = stmt.get([id]);
@@ -56,7 +56,15 @@ export default class DoCoLite {
     return _toCollection(row);
   }
 
-  findCollectionByName(parentId: number | null, name: string): Collection {
+  findCollectionById(id: number): Collection | undefined {
+    try {
+      return this.getCollectionById(id);
+    } catch {
+      return;
+    }
+  }
+
+  getCollectionByName(parentId: number | null, name: string): Collection {
     const { db } = this;
     let row;
     if (parentId !== null) {
@@ -76,6 +84,17 @@ export default class DoCoLite {
     return _toCollection(row);
   }
 
+  findCollectionByName(
+    parentId: number | null,
+    name: string
+  ): Collection | undefined {
+    try {
+      return this.getCollectionByName(parentId, name);
+    } catch {
+      return;
+    }
+  }
+
   createDocument(collectionId: number, name: string, data: any): Document {
     const { db } = this;
     const stmt = db.prepare(
@@ -83,7 +102,7 @@ export default class DoCoLite {
     );
     const id = stmt.run([collectionId, name, JSON.stringify(data)])
       .lastInsertRowid as number;
-    return this.findDocumentById(id);
+    return this.getDocumentById(id);
   }
 
   getDocumentData(documentId: number): any {
@@ -98,7 +117,7 @@ export default class DoCoLite {
     return JSON.parse(data);
   }
 
-  findDocumentById(id: number): Document {
+  getDocumentById(id: number): Document {
     const { db } = this;
     const stmt = db.prepare(
       "SELECT id, collection, name FROM documents WHERE id = ?"
@@ -110,7 +129,15 @@ export default class DoCoLite {
     return _toDocument(row);
   }
 
-  findDocumentByName(collectionId: number, name: string): Document {
+  findDocumentById(id: number): Document | undefined {
+    try {
+      return this.getDocumentById(id);
+    } catch {
+      return;
+    }
+  }
+
+  getDocumentByName(collectionId: number, name: string): Document {
     const { db } = this;
     const stmt = db.prepare(
       "SELECT id, collection, name FROM documents WHERE collection = ? AND name = ?"
@@ -122,6 +149,14 @@ export default class DoCoLite {
       );
     }
     return _toDocument(row);
+  }
+
+  findDocumentByName(collectionId: number, name: string): Document | undefined {
+    try {
+      return this.getDocumentByName(collectionId, name);
+    } catch {
+      return;
+    }
   }
 
   getDocumentsByCollection(collectionId: number): Document[] {

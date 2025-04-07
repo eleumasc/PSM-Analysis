@@ -6,12 +6,17 @@ import { Completion, isFailure } from "../util/Completion";
 import { detectPSM } from "../core/psm/detectPSM";
 import { getPSMAccuracy, PSMAccuracyScoreEntry } from "../core/psm/PSMAccuracy";
 import { getScoreTable } from "../core/psm/ScoreTable";
+import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { openDoCo } from "../core/DoCo";
-import { PSM_ANALYSIS_COLLECTION_TYPE, PSMAnalysisResult } from "./cmdAnalyze";
 import { ROCKYOU2021_PASSWORDS_ROWS } from "../data/rockyou2021";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
+import {
+  CHUNKS_COLLECTION_NAME,
+  PSM_ANALYSIS_COLLECTION_TYPE,
+  PSMAnalysisResult,
+} from "./cmdAnalyze";
 import {
   AbstractCallType,
   getIPFAbstractResultFromIPFResult,
@@ -34,9 +39,13 @@ export default function cmdMeasure(args: {
 }) {
   const dc = openDoCo(args.dbFilepath);
 
-  const psmAnalysisCollection = dc.findCollectionById(args.psmAnalysisId);
+  const psmAnalysisCollection = dc.getCollectionById(args.psmAnalysisId);
   assert(psmAnalysisCollection, PSM_ANALYSIS_COLLECTION_TYPE);
-  const registrationPagesCollection = dc.findCollectionById(
+  const chunksCollection = dc.getCollectionByName(
+    psmAnalysisCollection.id,
+    CHUNKS_COLLECTION_NAME
+  );
+  const registrationPagesCollection = dc.getCollectionById(
     psmAnalysisCollection.parentId!
   );
 
@@ -81,23 +90,24 @@ export default function cmdMeasure(args: {
   )) {
     const { name: registerPageKey } = document;
 
-    const completion = dc.getDocumentData(
+    const psmAnalysisResult = dc.getDocumentData(
       document.id
-    ) as Completion<PSMAnalysisResult>;
+    ) as PSMAnalysisResult;
 
-    if (isFailure(completion)) continue;
     analyzedRegisterPagesCount += 1;
 
-    const {
-      value: { detectIpfResult, analysisIpfResult },
-    } = completion;
+    const { detectCompletion, analysisCompletion } = psmAnalysisResult;
 
-    if (!detectIpfResult) continue;
+    if (!detectCompletion) continue;
+    if (isFailure(detectCompletion)) continue;
+    const detectIpfResult = dc.getDocumentData(
+      dc.getDocumentByName(chunksCollection.id, detectCompletion.value.chunkKey)
+        .id
+    ) as InputPasswordFieldResult;
+
     const detectAbstractResult =
       getIPFAbstractResultFromIPFResult(detectIpfResult);
-
     const psmDetected = detectPSM(detectAbstractResult);
-    if (!psmDetected) continue;
 
     if (TRUTH.has(registerPageKey)) {
       const truth = TRUTH.get(registerPageKey)!;
@@ -108,10 +118,18 @@ export default function cmdMeasure(args: {
       );
     }
 
-    if (!analysisIpfResult) continue;
+    if (!analysisCompletion) continue;
+    if (isFailure(analysisCompletion)) continue;
+    const analysisIpfResult = analysisCompletion.value.chunkKeys.flatMap(
+      (chunkKey) =>
+        dc.getDocumentData(
+          dc.getDocumentByName(chunksCollection.id, chunkKey).id
+        ) as InputPasswordFieldResult
+    );
+
+    assert(psmDetected);
     const analysisAbstractResult =
       getIPFAbstractResultFromIPFResult(analysisIpfResult);
-
     const { scoreTypes } = psmDetected;
     const scoreTable = getScoreTable(analysisAbstractResult, scoreTypes);
 

@@ -6,22 +6,25 @@ import { detectPSM } from "../core/psm/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/psm/InputPasswordFieldAbstractResult";
 import { mayDetectPSM } from "../core/psm/mayDetectPSM";
 import { openDoCo } from "../core/DoCo";
+import { PSM_ANALYSIS_COLLECTION_TYPE } from "../commands/cmdAnalyze";
 import { REGISTER_PAGES_COLLECTION_TYPE } from "../commands/cmdSearchRegisterPage";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
-import {
-  ChunkedPSMAnalysisResult,
-  PSM_ANALYSIS_COLLECTION_TYPE,
-} from "../commands/cmdAnalyze";
 import {
   SITES_COLLECTION_TYPE,
   SITES_DOCUMENT_NAME,
 } from "../commands/cmdLoadSiteList";
 
+export type OldPSMAnalysisResult = {
+  testChunkExists?: boolean;
+  detectChunkExists?: boolean;
+  analysisChunkExists?: boolean;
+  analysisChunksCount?: number;
+};
+
 const ARGS = process.argv.slice(2);
 const EXCLUDE_PSM_ANALYSIS = false; // default: false
 
 const SOURCE_FILE = ARGS[0];
-
 const OUTPUT_FILE = ARGS[1];
 
 function main() {
@@ -106,7 +109,7 @@ WHERE analysis = 1
       )
       .get([siteId]) as { data: string };
     const queryCompletion = JSON.parse(queryDataJson) as Completion<any>;
-    const psmAnalysisCompletion = ((): Completion<ChunkedPSMAnalysisResult> => {
+    const psmAnalysisCompletion = ((): Completion<OldPSMAnalysisResult> => {
       if (isFailure(probeCompletion)) return probeCompletion;
       const {
         value: { ipfResultPre: testIpfResult, ipfResult: detectIpfResult },
@@ -121,7 +124,7 @@ WHERE analysis = 1
         getIPFAbstractResultFromIPFResult(testIpfResult)
       );
       if (!ipfHint) {
-        return Success<ChunkedPSMAnalysisResult>({
+        return Success({
           testChunkExists: true,
         });
       }
@@ -135,7 +138,7 @@ WHERE analysis = 1
         getIPFAbstractResultFromIPFResult(detectIpfResult)
       );
       if (!psmDetected) {
-        return Success<ChunkedPSMAnalysisResult>({
+        return Success({
           testChunkExists: true,
           detectChunkExists: true,
         });
@@ -151,7 +154,7 @@ WHERE analysis = 1
         `analysis0:${registerPageKey}`,
         analysisIpfResult
       );
-      return Success<ChunkedPSMAnalysisResult>({
+      return Success({
         testChunkExists: true,
         detectChunkExists: true,
         analysisChunkExists: true,
