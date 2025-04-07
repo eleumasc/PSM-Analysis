@@ -179,7 +179,6 @@ export default function cmdMeasure(args: {
     registerPagesCount,
     analyzedRegisterPagesCount,
     psmDetectedConfusionMatrix: psmDetectedConfusionMatrix.get(),
-    psmRegisterPages,
     psmClusters,
   };
 
