@@ -2,12 +2,15 @@ import currentTime from "../util/currentTime";
 import Database from "better-sqlite3";
 import toSimplifiedURL from "../util/toSimplifiedURL";
 import { Completion, isFailure, Success } from "../util/Completion";
+import { detectPSM } from "../core/psm/detectPSM";
+import { getIPFAbstractResultFromIPFResult } from "../core/psm/InputPasswordFieldAbstractResult";
+import { mayDetectPSM } from "../core/psm/mayDetectPSM";
 import { openDoCo } from "../core/DoCo";
 import { REGISTER_PAGES_COLLECTION_TYPE } from "../commands/cmdSearchRegisterPage";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import {
+  ChunkedPSMAnalysisResult,
   PSM_ANALYSIS_COLLECTION_TYPE,
-  PSMAnalysisResult,
 } from "../commands/cmdAnalyze";
 import {
   SITES_COLLECTION_TYPE,
@@ -15,7 +18,7 @@ import {
 } from "../commands/cmdLoadSiteList";
 
 const ARGS = process.argv.slice(2);
-const EXCLUDE_PSM_ANALYSIS = true; // default: false
+const EXCLUDE_PSM_ANALYSIS = false; // default: false
 
 const SOURCE_FILE = ARGS[0];
 
@@ -103,19 +106,56 @@ WHERE analysis = 1
       )
       .get([siteId]) as { data: string };
     const queryCompletion = JSON.parse(queryDataJson) as Completion<any>;
-    const psmAnalysisCompletion = (() => {
+    const psmAnalysisCompletion = ((): Completion<ChunkedPSMAnalysisResult> => {
       if (isFailure(probeCompletion)) return probeCompletion;
-      if (isFailure(queryCompletion)) return queryCompletion;
       const {
         value: { ipfResultPre: testIpfResult, ipfResult: detectIpfResult },
       } = probeCompletion;
+
+      dc.createDocument(
+        psmAnalysisCollection.id,
+        `test:${registerPageKey}`,
+        testIpfResult
+      );
+      const ipfHint = mayDetectPSM(
+        getIPFAbstractResultFromIPFResult(testIpfResult)
+      );
+      if (!ipfHint) {
+        return Success<ChunkedPSMAnalysisResult>({
+          testChunkExists: true,
+        });
+      }
+
+      dc.createDocument(
+        psmAnalysisCollection.id,
+        `detect:${registerPageKey}`,
+        detectIpfResult
+      );
+      const psmDetected = detectPSM(
+        getIPFAbstractResultFromIPFResult(detectIpfResult)
+      );
+      if (!psmDetected) {
+        return Success<ChunkedPSMAnalysisResult>({
+          testChunkExists: true,
+          detectChunkExists: true,
+        });
+      }
+
+      if (isFailure(queryCompletion)) return queryCompletion;
       const {
         value: { ipfResult: analysisIpfResult },
       } = queryCompletion;
-      return Success<PSMAnalysisResult>({
-        testIpfResult,
-        detectIpfResult,
-        analysisIpfResult,
+
+      dc.createDocument(
+        psmAnalysisCollection.id,
+        `analysis0:${registerPageKey}`,
+        analysisIpfResult
+      );
+      return Success<ChunkedPSMAnalysisResult>({
+        testChunkExists: true,
+        detectChunkExists: true,
+        analysisChunkExists: true,
+        analysisChunksCount: 1,
       });
     })();
     dc.createDocument(
