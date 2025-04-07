@@ -182,7 +182,7 @@ export default function cmdMeasure(args: {
     psmClusters,
   };
 
-  writeFileSync("output.json", JSON.stringify(report));
+  writeFileSync("report.json", JSON.stringify(report));
 
   process.exit(0);
 }
