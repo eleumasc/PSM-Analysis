@@ -57,16 +57,16 @@ function main() {
     currentTime().toString(),
     { type: REGISTER_PAGES_COLLECTION_TYPE }
   );
-  for (const { site_id: siteId, site, data: dataJson } of db
+  for (const { siteId, site, data: dataJson } of db
     .prepare(
       `
-SELECT d.id AS site_id, d.name AS site, r.detail AS data
+SELECT d.id AS siteId, d.name AS site, r.detail AS data
 FROM analysis_results r
 JOIN domains d ON d.id = r.domain
 WHERE analysis = 1
 `
     )
-    .all() as { site_id: string; site: string; data: string }[]) {
+    .all() as { siteId: string; site: string; data: string }[]) {
     const oldCompletion = JSON.parse(dataJson) as Completion<any>;
     const newCompletion = (() => {
       if (isFailure(oldCompletion)) return oldCompletion;
@@ -103,12 +103,14 @@ WHERE analysis = 1
       )
       .get([siteId]) as { data: string };
     const probeCompletion = JSON.parse(probeDataJson) as Completion<any>;
+
     const { data: queryDataJson } = db
       .prepare(
         "SELECT detail as data FROM analysis_results WHERE analysis = 3 AND domain = ?"
       )
       .get([siteId]) as { data: string };
     const queryCompletion = JSON.parse(queryDataJson) as Completion<any>;
+
     const psmAnalysisCompletion = ((): Completion<OldPSMAnalysisResult> => {
       if (isFailure(probeCompletion)) return probeCompletion;
       const {

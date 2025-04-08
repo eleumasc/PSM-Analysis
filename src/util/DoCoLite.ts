@@ -79,7 +79,9 @@ export default class DoCoLite {
       row = stmt.get([name]);
     }
     if (!row) {
-      throw new Error(`Root collection with name '${name}' does not exist`);
+      throw new Error(
+        `Collection with name '${name}' does not exist in collection with ID ${parentId}`
+      );
     }
     return _toCollection(row);
   }
@@ -191,7 +193,7 @@ export interface Document {
   name: string;
 }
 
-function _toDocument(row: any) {
+function _toDocument(row: any): Document {
   const { id, collection: collectionId, name } = row;
   assert(typeof id === "number");
   assert(typeof collectionId === "number");
