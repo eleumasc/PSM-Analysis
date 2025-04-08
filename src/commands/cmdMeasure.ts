@@ -24,7 +24,9 @@ import {
 
 type PSMRegisterPage = {
   registerPageKey: string;
+  sites: string[];
   maxAccuracyPsfDetail: PSFDetail;
+  hasServerSidePsf: boolean;
 };
 
 type PSFDetail = {
@@ -49,21 +51,19 @@ export default function cmdMeasure(args: {
     psmAnalysisCollection.parentId!
   );
 
-  // basic stats
+  // Register Pages
 
-  let analyzedSitesCount = 0;
   let accessedSitesCount = 0;
   let registerPagesSitesCount = 0;
   let registerPagesCount = 0;
 
-  const registerPagesKeySet = new Set<string>();
-  for (const document of dc.getDocumentsByCollection(
+  const registerPageSitesMap = new Map<string, string[]>();
+
+  for (const { id: documentId, name: site } of dc.getDocumentsByCollection(
     registrationPagesCollection.id
   )) {
-    analyzedSitesCount += 1;
-
     const completion = dc.getDocumentData(
-      document.id
+      documentId
     ) as Completion<SearchRegisterPageResult>;
 
     if (isFailure(completion)) continue;
@@ -75,36 +75,44 @@ export default function cmdMeasure(args: {
     if (registerPageUrl === null) continue;
     registerPagesSitesCount += 1;
 
-    registerPagesKeySet.add(toSimplifiedURL(registerPageUrl).toString());
-    registerPagesCount = registerPagesKeySet.size;
+    {
+      const registerPageKey = toSimplifiedURL(registerPageUrl).toString();
+      registerPageSitesMap.set(registerPageKey, [
+        ...(registerPageSitesMap.get(registerPageKey) ?? []),
+        site,
+      ]);
+    }
+    registerPagesCount = registerPageSitesMap.size;
   }
 
-  // PSM analysis
+  // PSM Analysis
 
-  let analyzedRegisterPagesCount = 0;
+  let successfulDetectRegisterPagesCount = 0;
+  let successfulAnalysisRegisterPagesCount = 0;
+  let psmDetectedRegisterPagesCount = 0;
+  let psmDetectedSitesCount = 0;
+  const psmDetectedSites: string[] = [];
   const psmDetectedConfusionMatrix = new ConfusionMatrix<string>();
   const psmRegisterPages: PSMRegisterPage[] = [];
 
-  for (const document of dc.getDocumentsByCollection(
-    psmAnalysisCollection.id
-  )) {
-    const { name: registerPageKey } = document;
-
+  for (const {
+    id: documentId,
+    name: registerPageKey,
+  } of dc.getDocumentsByCollection(psmAnalysisCollection.id)) {
     const psmAnalysisResult = dc.getDocumentData(
-      document.id
+      documentId
     ) as PSMAnalysisResult;
-
-    analyzedRegisterPagesCount += 1;
 
     const { detectCompletion, analysisCompletion } = psmAnalysisResult;
 
     if (!detectCompletion) continue;
     if (isFailure(detectCompletion)) continue;
+    successfulDetectRegisterPagesCount += 1;
+
     const detectIpfResult = dc.getDocumentData(
       dc.getDocumentByName(chunksCollection.id, detectCompletion.value.chunkKey)
         .id
     ) as InputPasswordFieldResult;
-
     const detectAbstractResult =
       getIPFAbstractResultFromIPFResult(detectIpfResult);
     const psmDetected = detectPSM(detectAbstractResult);
@@ -118,16 +126,21 @@ export default function cmdMeasure(args: {
       );
     }
 
+    if (!psmDetected) continue;
+    psmDetectedRegisterPagesCount += 1;
+    psmDetectedSitesCount += registerPageSitesMap.get(registerPageKey)!.length;
+    psmDetectedSites.push(...registerPageSitesMap.get(registerPageKey)!);
+
     if (!analysisCompletion) continue;
     if (isFailure(analysisCompletion)) continue;
+    successfulAnalysisRegisterPagesCount += 1;
+
     const analysisIpfResult = analysisCompletion.value.chunkKeys.flatMap(
       (chunkKey) =>
         dc.getDocumentData(
           dc.getDocumentByName(chunksCollection.id, chunkKey).id
         ) as InputPasswordFieldResult
     );
-
-    assert(psmDetected);
     const analysisAbstractResult =
       getIPFAbstractResultFromIPFResult(analysisIpfResult);
     const { scoreTypes } = psmDetected;
@@ -159,9 +172,15 @@ export default function cmdMeasure(args: {
     );
     if (!maxAccuracyPsfDetail) continue;
 
+    const hasServerSidePsf = psfDetails.some(
+      (psfDetail) => psfDetail.scoreType.kind === "xhrRequest"
+    );
+
     const psmRegisterPage = <PSMRegisterPage>{
       registerPageKey,
+      sites: registerPageSitesMap.get(registerPageKey),
       maxAccuracyPsfDetail,
+      hasServerSidePsf,
     };
     psmRegisterPages.push(psmRegisterPage);
   }
@@ -173,15 +192,17 @@ export default function cmdMeasure(args: {
   );
 
   const report = {
-    analyzedSitesCount,
     accessedSitesCount,
     registerPagesSitesCount,
     registerPagesCount,
-    analyzedRegisterPagesCount,
+    successfulDetectRegisterPagesCount,
+    successfulAnalysisRegisterPagesCount,
+    psmDetectedRegisterPagesCount,
+    psmDetectedSitesCount,
+    psmDetectedSites,
     psmDetectedConfusionMatrix: psmDetectedConfusionMatrix.get(),
     psmClusters,
   };
-
   writeFileSync("report.json", JSON.stringify(report));
 
   process.exit(0);

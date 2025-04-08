@@ -14,7 +14,7 @@ export const TRUTH = new Map([
   ["https://fd.nic.ru/reg_form.cgi/en", false],
   ["https://account.gandi.net/en/create_account", true],
   ["https://id.unity.com/account/new", false],
-  ["https://accounts.snapchat.com/accounts/v2/signup", false],
+  ["https://accounts.snapchat.com/accounts/v2/signup", true],
   ["https://www.wikihow.com/Special:UserLogin", false],
   ["https://forge-allura.apache.org/auth/create_account", false],
   ["https://account.ui.com/register", true],
