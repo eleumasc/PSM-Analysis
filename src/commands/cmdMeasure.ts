@@ -3,7 +3,7 @@ import assert from "assert";
 import ConfusionMatrix from "../util/ConfusionMatrix";
 import toSimplifiedURL from "../util/toSimplifiedURL";
 import { Completion, isFailure } from "../util/Completion";
-import { detectPSM } from "../core/psm/detectPSM";
+import { detectPSM, getDetectPSMFilteringDetail } from "../core/psm/detectPSM";
 import { getPSMAccuracy, PSMAccuracyScoreEntry } from "../core/psm/PSMAccuracy";
 import { getScoreTable } from "../core/psm/ScoreTable";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
@@ -94,6 +94,10 @@ export default function cmdMeasure(args: {
   const psmDetectedSites: string[] = [];
   const psmDetectedConfusionMatrix = new ConfusionMatrix<string>();
   const psmRegisterPages: PSMRegisterPage[] = [];
+  let filteredConstantFunctionsCount = 0;
+  let filteredLengthFunctionsCount = 0;
+  let filteredCharacterCountFunctionsCount = 0;
+  let filteredNotMonotoneFunctionsCount = 0;
 
   for (const {
     id: documentId,
@@ -125,6 +129,14 @@ export default function cmdMeasure(args: {
         truth
       );
     }
+
+    const filteringDetail = getDetectPSMFilteringDetail(detectAbstractResult);
+    filteredConstantFunctionsCount += filteringDetail.constantFunctionsCount;
+    filteredLengthFunctionsCount += filteringDetail.lengthFunctionsCount;
+    filteredCharacterCountFunctionsCount +=
+      filteringDetail.characterCountFunctionsCount;
+    filteredNotMonotoneFunctionsCount +=
+      filteringDetail.notMonotoneFunctionsCount;
 
     if (!psmDetected) continue;
     psmDetectedRegisterPagesCount += 1;
@@ -197,6 +209,10 @@ export default function cmdMeasure(args: {
     registerPagesCount,
     successfulDetectRegisterPagesCount,
     successfulAnalysisRegisterPagesCount,
+    filteredConstantFunctionsCount,
+    filteredLengthFunctionsCount,
+    filteredCharacterCountFunctionsCount,
+    filteredNotMonotoneFunctionsCount,
     psmDetectedRegisterPagesCount,
     psmDetectedSitesCount,
     psmDetectedSites,
