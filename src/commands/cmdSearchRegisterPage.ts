@@ -25,6 +25,7 @@ export default async function cmdSearchRegisterPage(
       }
   ) & {
     maxTasks: number;
+    noHeadlessBrowser: boolean;
   }
 ) {
   const dc = openDoCo();
@@ -63,7 +64,9 @@ export default async function cmdSearchRegisterPage(
     { maxTasks: args.maxTasks },
     (site, queueIndex) => async () => {
       console.log(`begin analysis ${site} [${queueIndex}]`);
-      const result = await runSearchRegisterPage(site);
+      const result = await runSearchRegisterPage(site, {
+        headlessBrowser: !args.noHeadlessBrowser,
+      });
       console.log(`end analysis ${site} [${queueIndex}]`);
       dc.createDocument(outputCollection.id, site, result);
     }
@@ -72,9 +75,14 @@ export default async function cmdSearchRegisterPage(
   process.exit(0);
 }
 
-export async function runSearchRegisterPage(site: string) {
+export async function runSearchRegisterPage(
+  site: string,
+  options: {
+    headlessBrowser: boolean;
+  }
+) {
   return toCompletion(() =>
-    useBrowser(async (browser) => {
+    useBrowser({ headless: options.headlessBrowser }, async (browser) => {
       const page = await browser.newPage();
       return bomb(() => searchRegisterPage(page, site), ANALYSIS_TIMEOUT_MS);
     })

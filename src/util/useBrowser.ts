@@ -6,6 +6,7 @@ import { idcacDir } from "../idcacDir";
 let pluginsRegistered = false;
 
 export default async function useBrowser<T>(
+  options: { headless?: boolean },
   use: (browser: BrowserContext) => Promise<T>
 ): Promise<T> {
   if (!pluginsRegistered) {
@@ -14,7 +15,7 @@ export default async function useBrowser<T>(
   }
 
   const browser = await chromium.launchPersistentContext("", {
-    headless: false,
+    headless: options.headless ?? true,
     args: [
       `--disable-extensions-except=${idcacDir}`,
       `--load-extension=${idcacDir}`, // load extension "I Don't Care About Cookies"

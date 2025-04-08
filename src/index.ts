@@ -34,6 +34,10 @@ async function main() {
           .option("max-tasks", {
             type: "number",
             default: 1,
+          })
+          .option("no-headless-browser", {
+            type: "boolean",
+            default: false,
           }),
       (args) => cmdSearchRegisterPage({ action: "create", ...args })
     )
@@ -50,6 +54,10 @@ async function main() {
           .option("max-tasks", {
             type: "number",
             default: 1,
+          })
+          .option("no-headless-browser", {
+            type: "boolean",
+            default: false,
           }),
       (args) => cmdSearchRegisterPage({ action: "resume", ...args })
     )
@@ -71,6 +79,10 @@ async function main() {
           .option("max-instrument-workers", {
             type: "number",
             default: 1,
+          })
+          .option("no-headless-browser", {
+            type: "boolean",
+            default: false,
           }),
       (args) => cmdAnalyze({ action: "create", ...args })
     )
@@ -91,6 +103,10 @@ async function main() {
           .option("max-instrument-workers", {
             type: "number",
             default: 1,
+          })
+          .option("no-headless-browser", {
+            type: "boolean",
+            default: false,
           }),
       (args) => cmdAnalyze({ action: "resume", ...args })
     )

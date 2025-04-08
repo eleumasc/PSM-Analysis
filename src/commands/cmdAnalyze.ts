@@ -62,6 +62,7 @@ export default async function cmdAnalyze(
   ) & {
     maxTasks: number;
     maxInstrumentWorkers: number;
+    noHeadlessBrowser: boolean;
   }
 ) {
   const dc = openDoCo();
@@ -138,6 +139,7 @@ export default async function cmdAnalyze(
           },
         },
         maxInstrumentWorkers: args.maxInstrumentWorkers,
+        headlessBrowser: !args.noHeadlessBrowser,
       });
       console.log(`end analysis ${registerPageKey} [${queueIndex}]`);
       dc.createDocument(outputCollection.id, registerPageKey, result);
@@ -155,6 +157,7 @@ export async function runAnalyze(
       set: (key: string, value: any) => Promise<void>;
     };
     maxInstrumentWorkers: number;
+    headlessBrowser: boolean;
   }
 ): Promise<PSMAnalysisResult> {
   const { url: registerPageUrl } = registerPageEntry;
@@ -175,19 +178,22 @@ export async function runAnalyze(
           return savedIpfResult;
         }
 
-        const computedIpfResult = await useBrowser(async (browser) => {
-          const page = await browser.newPage();
-          await installAnalysis(page, { workerExec });
-          return bomb(
-            () =>
-              inputPasswordField(page, {
-                registerPageUrl,
-                passwordList,
-                hint,
-              }),
-            RUN_IPF_TIMEOUT_MS
-          );
-        });
+        const computedIpfResult = await useBrowser(
+          { headless: options.headlessBrowser },
+          async (browser) => {
+            const page = await browser.newPage();
+            await installAnalysis(page, { workerExec });
+            return bomb(
+              () =>
+                inputPasswordField(page, {
+                  registerPageUrl,
+                  passwordList,
+                  hint,
+                }),
+              RUN_IPF_TIMEOUT_MS
+            );
+          }
+        );
         await options.chunkManager.set(chunkKey, computedIpfResult);
         return computedIpfResult;
       };
