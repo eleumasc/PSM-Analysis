@@ -15,6 +15,7 @@ export default async function useBrowser<T>(
   }
 
   const browser = await chromium.launchPersistentContext("", {
+    channel: "chromium",
     headless: options.headless ?? true,
     args: [
       `--disable-extensions-except=${idcacDir}`,
