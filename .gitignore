@@ -5,3 +5,4 @@ psm-analysis.sqlite
 psm-analysis.sqlite-journal
 nohup.out
 report.json
+plots/out
