@@ -246,13 +246,11 @@ export async function runAnalyze(
         return result;
       }
 
-      const enumeratedBuckets = buckets(
+      let analysisChunkKeys: string[] = [];
+      for (const [bucket, i] of buckets(
         getRockYou2021Passwords(),
         BUCKET_SIZE
-      ).map((x, i): [typeof x, number] => [x, i]);
-
-      let analysisChunkKeys: string[] = [];
-      for (const [bucket, i] of enumeratedBuckets) {
+      ).map((x, i): [typeof x, number] => [x, i])) {
         const analysisChunkKey = getChunkKey(`analysis${i}`);
         analysisChunkKeys = [...analysisChunkKeys, analysisChunkKey];
         const analysisCompletion = await toCompletion(() =>
