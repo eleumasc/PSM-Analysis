@@ -23,7 +23,7 @@ plt.scatter(accuracies, prevalences, color="blue")
 
 # Add labels and grid
 plt.xlabel("Accuracy")
-plt.ylabel("Prevalence")
+plt.ylabel("Prevalence (Registration Pages)")
 plt.title("Accuracy vs Prevalence")
 plt.grid(True)
 plt.xlim(-1, 1)
