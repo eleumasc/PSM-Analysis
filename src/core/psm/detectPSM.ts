@@ -21,22 +21,26 @@ export type PSMDetail = {
   scoreTypes: AbstractCallType[];
 };
 
-const isConstantFunction = ({ occurrences }: ScoreCandidate) =>
+export type ScoreCandidateFilteringDetail = Record<string, number>;
+
+const isConstantCandidate = ({ occurrences }: ScoreCandidate) =>
   isConstant(occurrences.map(({ value }) => value));
 
-const isLengthFunction = ({ occurrences }: ScoreCandidate) =>
+const isLengthCandidate = ({ occurrences }: ScoreCandidate) =>
   occurrences.every((occ) => occ.value === occ.password.length);
 
-const isCharacterCountFunction = ({ occurrences }: ScoreCandidate) =>
-  [...combinations([reLower, reUpper, reDigit, reSpecial])].some((comb) =>
-    occurrences.every(
-      (occ) =>
-        occ.value ===
-        _.sumBy(comb, (re) => [...occ.password.matchAll(re())].length)
-    )
-  );
+const isCharacterCountCandidate = ({ occurrences }: ScoreCandidate) =>
+  [...combinations([reLower, reUpper, reDigit, reSpecial])]
+    .filter((comb) => comb.length !== 0 && comb.length !== 4)
+    .some((comb) =>
+      occurrences.every(
+        (occ) =>
+          occ.value ===
+          _.sumBy(comb, (re) => [...occ.password.matchAll(re())].length)
+      )
+    );
 
-const isMonotoneFunction = ({ occurrences }: ScoreCandidate) =>
+const isMonotoneCandidate = ({ occurrences }: ScoreCandidate) =>
   MONOTONE_TEST_PASSWORDS_SEQUENCES.every((group) => {
     const values = group
       .flatMap((password) => {
@@ -56,42 +60,54 @@ export function detectPSM(
   const scoreTypes = scoreCandidates
     .filter(
       (scoreCandidate) =>
-        !isConstantFunction(scoreCandidate) &&
-        !isLengthFunction(scoreCandidate) &&
-        !isCharacterCountFunction(scoreCandidate)
+        !isConstantCandidate(scoreCandidate) &&
+        !isLengthCandidate(scoreCandidate) &&
+        !isCharacterCountCandidate(scoreCandidate) &&
+        isMonotoneCandidate(scoreCandidate)
     )
-    .filter((scoreCandidate) => isMonotoneFunction(scoreCandidate))
     .map(({ type }) => type);
 
   return scoreTypes.length > 0 ? { scoreTypes } : null;
 }
 
-export function getDetectPSMFilteringDetail(
+export function getScoreCandidateFilteringDetail(
   ipfAbstractResult: InputPasswordFieldAbstractResult
-) {
+): ScoreCandidateFilteringDetail {
   const scoreCandidates =
     getScoreCandidatesFromPFIAbstractResult(ipfAbstractResult);
 
-  const constantFunctionsCount = scoreCandidates.filter((scoreCandidate) =>
-    isConstantFunction(scoreCandidate)
+  const allCandidatesCount = scoreCandidates.length;
+
+  const filteredCandidatesCount = scoreCandidates.filter(
+    (scoreCandidate) =>
+      !isConstantCandidate(scoreCandidate) &&
+      !isLengthCandidate(scoreCandidate) &&
+      !isCharacterCountCandidate(scoreCandidate) &&
+      isMonotoneCandidate(scoreCandidate)
   ).length;
 
-  const lengthFunctionsCount = scoreCandidates.filter((scoreCandidate) =>
-    isLengthFunction(scoreCandidate)
+  const constantCandidatesCount = scoreCandidates.filter((scoreCandidate) =>
+    isConstantCandidate(scoreCandidate)
   ).length;
 
-  const characterCountFunctionsCount = scoreCandidates.filter(
-    (scoreCandidate) => isCharacterCountFunction(scoreCandidate)
+  const lengthCandidatesCount = scoreCandidates.filter((scoreCandidate) =>
+    isLengthCandidate(scoreCandidate)
   ).length;
 
-  const notMonotoneFunctionsCount = scoreCandidates.filter(
-    (scoreCandidate) => !isMonotoneFunction(scoreCandidate)
+  const characterCountCandidatesCount = scoreCandidates.filter(
+    (scoreCandidate) => isCharacterCountCandidate(scoreCandidate)
+  ).length;
+
+  const nonMonotoneCandidatesCount = scoreCandidates.filter(
+    (scoreCandidate) => !isMonotoneCandidate(scoreCandidate)
   ).length;
 
   return {
-    constantFunctionsCount,
-    lengthFunctionsCount,
-    characterCountFunctionsCount,
-    notMonotoneFunctionsCount,
+    allCandidatesCount,
+    filteredCandidatesCount,
+    constantCandidatesCount,
+    lengthCandidatesCount,
+    characterCountCandidatesCount,
+    nonMonotoneCandidatesCount,
   };
 }

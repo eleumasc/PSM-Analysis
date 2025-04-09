@@ -3,7 +3,6 @@ import assert from "assert";
 import ConfusionMatrix from "../util/ConfusionMatrix";
 import toSimplifiedURL from "../util/toSimplifiedURL";
 import { Completion, isFailure } from "../util/Completion";
-import { detectPSM, getDetectPSMFilteringDetail } from "../core/psm/detectPSM";
 import { getPSMAccuracy, PSMAccuracyScoreEntry } from "../core/psm/PSMAccuracy";
 import { getScoreTable } from "../core/psm/ScoreTable";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
@@ -12,6 +11,11 @@ import { ROCKYOU2021_PASSWORDS_ROWS } from "../data/rockyou2021";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
+import {
+  detectPSM,
+  getScoreCandidateFilteringDetail,
+  ScoreCandidateFilteringDetail,
+} from "../core/psm/detectPSM";
 import {
   CHUNKS_COLLECTION_NAME,
   PSM_ANALYSIS_COLLECTION_TYPE,
@@ -94,10 +98,7 @@ export default function cmdMeasure(args: {
   const psmDetectedSites: string[] = [];
   const psmDetectedConfusionMatrix = new ConfusionMatrix<string>();
   const psmRegisterPages: PSMRegisterPage[] = [];
-  let filteredConstantFunctionsCount = 0;
-  let filteredLengthFunctionsCount = 0;
-  let filteredCharacterCountFunctionsCount = 0;
-  let filteredNotMonotoneFunctionsCount = 0;
+  const filteringDetail: ScoreCandidateFilteringDetail = {};
 
   for (const {
     id: documentId,
@@ -107,9 +108,15 @@ export default function cmdMeasure(args: {
       documentId
     ) as PSMAnalysisResult;
 
-    const { detectCompletion, analysisCompletion } = psmAnalysisResult;
+    const { testCompletion, detectCompletion, analysisCompletion } =
+      psmAnalysisResult;
 
-    if (!detectCompletion) continue;
+    assert(testCompletion);
+    if (isFailure(testCompletion)) continue;
+    if (!detectCompletion) {
+      successfulDetectRegisterPagesCount += 1;
+      continue;
+    }
     if (isFailure(detectCompletion)) continue;
     successfulDetectRegisterPagesCount += 1;
 
@@ -130,20 +137,19 @@ export default function cmdMeasure(args: {
       );
     }
 
-    const filteringDetail = getDetectPSMFilteringDetail(detectAbstractResult);
-    filteredConstantFunctionsCount += filteringDetail.constantFunctionsCount;
-    filteredLengthFunctionsCount += filteringDetail.lengthFunctionsCount;
-    filteredCharacterCountFunctionsCount +=
-      filteringDetail.characterCountFunctionsCount;
-    filteredNotMonotoneFunctionsCount +=
-      filteringDetail.notMonotoneFunctionsCount;
+    const filteringDetailLocal =
+      getScoreCandidateFilteringDetail(detectAbstractResult);
+    for (const key of Object.keys(filteringDetailLocal)) {
+      filteringDetail[key] =
+        (filteringDetail[key] ?? 0) + filteringDetailLocal[key];
+    }
 
     if (!psmDetected) continue;
     psmDetectedRegisterPagesCount += 1;
     psmDetectedSitesCount += registerPageSitesMap.get(registerPageKey)!.length;
     psmDetectedSites.push(...registerPageSitesMap.get(registerPageKey)!);
 
-    if (!analysisCompletion) continue;
+    assert(analysisCompletion);
     if (isFailure(analysisCompletion)) continue;
     successfulAnalysisRegisterPagesCount += 1;
 
@@ -209,10 +215,7 @@ export default function cmdMeasure(args: {
     registerPagesCount,
     successfulDetectRegisterPagesCount,
     successfulAnalysisRegisterPagesCount,
-    filteredConstantFunctionsCount,
-    filteredLengthFunctionsCount,
-    filteredCharacterCountFunctionsCount,
-    filteredNotMonotoneFunctionsCount,
+    filteringDetail,
     psmDetectedRegisterPagesCount,
     psmDetectedSitesCount,
     psmDetectedSites,
