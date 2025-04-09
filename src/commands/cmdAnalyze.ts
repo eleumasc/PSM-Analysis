@@ -175,7 +175,7 @@ export async function runAnalyze(
       ): Promise<InputPasswordFieldResult> => {
         const savedIpfResult = await options.chunkManager.get(chunkKey);
         if (savedIpfResult) {
-          console.log(`${chunkKey} was already computed`);
+          console.log(`${chunkKey} done (saved)`);
           return savedIpfResult;
         }
 
@@ -196,6 +196,7 @@ export async function runAnalyze(
           }
         );
         await options.chunkManager.set(chunkKey, computedIpfResult);
+        console.log(`${chunkKey} done`);
         return computedIpfResult;
       };
 
