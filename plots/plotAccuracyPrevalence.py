@@ -10,7 +10,7 @@ with open("report.json", "r") as f:
 points = [
     (
         cluster[0]["maxAccuracyPsfDetail"]["accuracy"],
-        sum(len(site_cluster["sites"]) for site_cluster in cluster),
+        len(cluster),
     )
     for cluster in data["psmClusters"]
 ]

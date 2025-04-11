@@ -10,6 +10,7 @@ import { openDoCo } from "../core/DoCo";
 import { ROCKYOU2021_PASSWORDS_ROWS } from "../data/rockyou2021";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import { TRUTH } from "../data/truth";
+import { weightedSpearman } from "../util/weightedSpearman";
 import { writeFileSync } from "fs";
 import {
   detectPSM,
@@ -23,6 +24,7 @@ import {
 } from "./cmdAnalyze";
 import {
   AbstractCallType,
+  FunctionCallAbstractCallType,
   getIPFAbstractResultFromIPFResult,
 } from "../core/psm/InputPasswordFieldAbstractResult";
 
@@ -30,7 +32,6 @@ type PSMRegisterPage = {
   registerPageKey: string;
   sites: string[];
   maxAccuracyPsfDetail: PSFDetail;
-  hasServerSidePsf: boolean;
 };
 
 type PSFDetail = {
@@ -93,10 +94,15 @@ export default function cmdMeasure(args: {
 
   let successfulDetectRegisterPagesCount = 0;
   let successfulAnalysisRegisterPagesCount = 0;
-  let psmDetectedRegisterPagesCount = 0;
-  let psmDetectedSitesCount = 0;
-  const psmDetectedSites: string[] = [];
-  const psmDetectedConfusionMatrix = new ConfusionMatrix<string>();
+  let psmRegisterPagesCount = 0;
+  let psmClientSideRegisterPagesCount = 0;
+  let psmClientSideCrossOriginRegisterPagesCount = 0;
+  let psmServerSideRegisterPagesCount = 0;
+  let psmServerSideCrossOriginRegisterPagesCount = 0;
+  let psmServerSideInsecureRegisterPagesCount = 0;
+  let psmSitesCount = 0;
+  const psmSites: string[] = [];
+  const psmConfusionMatrix = new ConfusionMatrix<string>();
   const psmRegisterPages: PSMRegisterPage[] = [];
   const filteringDetail: ScoreCandidateFilteringDetail = {};
 
@@ -130,11 +136,7 @@ export default function cmdMeasure(args: {
 
     if (TRUTH.has(registerPageKey)) {
       const truth = TRUTH.get(registerPageKey)!;
-      psmDetectedConfusionMatrix.addValue(
-        registerPageKey,
-        Boolean(psmDetected),
-        truth
-      );
+      psmConfusionMatrix.addValue(registerPageKey, Boolean(psmDetected), truth);
     }
 
     const filteringDetailLocal =
@@ -145,9 +147,36 @@ export default function cmdMeasure(args: {
     }
 
     if (!psmDetected) continue;
-    psmDetectedRegisterPagesCount += 1;
-    psmDetectedSitesCount += registerPageSitesMap.get(registerPageKey)!.length;
-    psmDetectedSites.push(...registerPageSitesMap.get(registerPageKey)!);
+    const { scoreTypes } = psmDetected;
+    psmRegisterPagesCount += 1;
+    const serverSideScoreType = scoreTypes.find(
+      (scoreType) => scoreType.kind === "xhrRequest"
+    );
+    if (serverSideScoreType) {
+      psmServerSideRegisterPagesCount += 1;
+      if (
+        new URL(serverSideScoreType.url).origin !==
+        new URL(registerPageKey).origin
+      ) {
+        psmServerSideCrossOriginRegisterPagesCount += 1;
+      }
+      if (new URL(serverSideScoreType.url).protocol !== "https:") {
+        psmServerSideInsecureRegisterPagesCount += 1;
+      }
+    } else {
+      psmClientSideRegisterPagesCount += 1;
+      if (
+        (scoreTypes as FunctionCallAbstractCallType[]).some(
+          (scoreType) =>
+            new URL(scoreType.sourceLoc[0]).origin !==
+            new URL(registerPageKey).origin
+        )
+      ) {
+        psmClientSideCrossOriginRegisterPagesCount += 1;
+      }
+    }
+    psmSitesCount += registerPageSitesMap.get(registerPageKey)!.length;
+    psmSites.push(...registerPageSitesMap.get(registerPageKey)!);
 
     assert(analysisCompletion);
     if (isFailure(analysisCompletion)) continue;
@@ -161,7 +190,6 @@ export default function cmdMeasure(args: {
     );
     const analysisAbstractResult =
       getIPFAbstractResultFromIPFResult(analysisIpfResult);
-    const { scoreTypes } = psmDetected;
     const scoreTable = getScoreTable(analysisAbstractResult, scoreTypes);
 
     const psfDetails = _.map(scoreTypes, (scoreType): PSFDetail => {
@@ -190,15 +218,10 @@ export default function cmdMeasure(args: {
     );
     if (!maxAccuracyPsfDetail) continue;
 
-    const hasServerSidePsf = psfDetails.some(
-      (psfDetail) => psfDetail.scoreType.kind === "xhrRequest"
-    );
-
     const psmRegisterPage = <PSMRegisterPage>{
       registerPageKey,
       sites: registerPageSitesMap.get(registerPageKey),
       maxAccuracyPsfDetail,
-      hasServerSidePsf,
     };
     psmRegisterPages.push(psmRegisterPage);
   }
@@ -209,6 +232,12 @@ export default function cmdMeasure(args: {
     )
   );
 
+  const accuracyPrevalenceCorrelation = weightedSpearman(
+    psmClusters.map((cluster) => cluster[0].maxAccuracyPsfDetail.accuracy),
+    psmClusters.map((cluster) => cluster.length),
+    psmClusters.map((cluster) => cluster.length)
+  );
+
   const report = {
     accessedSitesCount,
     registerPagesSitesCount,
@@ -216,11 +245,17 @@ export default function cmdMeasure(args: {
     successfulDetectRegisterPagesCount,
     successfulAnalysisRegisterPagesCount,
     filteringDetail,
-    psmDetectedRegisterPagesCount,
-    psmDetectedSitesCount,
-    psmDetectedSites,
-    psmDetectedConfusionMatrix: psmDetectedConfusionMatrix.get(),
+    psmRegisterPagesCount,
+    psmClientSideRegisterPagesCount,
+    psmClientSideCrossOriginRegisterPagesCount,
+    psmServerSideRegisterPagesCount,
+    psmServerSideCrossOriginRegisterPagesCount,
+    psmServerSideInsecureRegisterPagesCount,
+    psmSitesCount,
+    psmSites,
+    psmConfusionMatrix: psmConfusionMatrix.get(),
     psmClusters,
+    accuracyPrevalenceCorrelation,
   };
   writeFileSync("report.json", JSON.stringify(report));
 
