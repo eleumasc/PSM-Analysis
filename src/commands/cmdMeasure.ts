@@ -232,12 +232,6 @@ export default function cmdMeasure(args: {
     )
   );
 
-  const accuracyPrevalenceCorrelation = weightedSpearman(
-    psmClusters.map((cluster) => cluster[0].maxAccuracyPsfDetail.accuracy),
-    psmClusters.map((cluster) => cluster.length),
-    psmClusters.map((cluster) => cluster.length)
-  );
-
   const report = {
     accessedSitesCount,
     registerPagesSitesCount,
@@ -255,7 +249,6 @@ export default function cmdMeasure(args: {
     psmSites,
     psmConfusionMatrix: psmConfusionMatrix.get(),
     psmClusters,
-    accuracyPrevalenceCorrelation,
   };
   writeFileSync("report.json", JSON.stringify(report));
 
