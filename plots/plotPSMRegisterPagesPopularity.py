@@ -29,8 +29,8 @@ def countPSMRegisterPages(size, offset):
     )
 
 
-bucket_size = 5000
-num_buckets = 10
+bucket_size = 1000
+num_buckets = 50
 
 psm_regpages_y_values = []
 regpages_y_values = []
@@ -43,37 +43,31 @@ for i in range(num_buckets):
 print(regpages_y_values)
 print(psm_regpages_y_values)
 
+percentages = [
+    (psm / total * 100 if total > 0 else 0)
+    for psm, total in zip(psm_regpages_y_values, regpages_y_values)
+]
+
 x_edges = [i * bucket_size for i in range(num_buckets + 1)]
 x_centers = [x_edges[i] + bucket_size / 2 for i in range(num_buckets)]
 
 plt.figure(figsize=(8, 6))
 
-plt.bar(
+plt.plot(
     x_centers,
-    regpages_y_values,
-    width=bucket_size,
-    align="center",
-    color="blue",
-    edgecolor="black",
-    label="Registration Pages",
-)
-
-plt.bar(
-    x_centers,
-    psm_regpages_y_values,
-    width=bucket_size,
-    align="center",
-    color="green",
-    edgecolor="black",
-    label="Registration Pages with PSM",
+    percentages,
+    marker="o",
+    linestyle="-",
+    color="purple",
+    label="Registration Pages with PSM (%)",
 )
 
 plt.xticks(x_edges, rotation=90)
-plt.xlabel("Popularity")
-plt.ylabel("Count")
-plt.title("Distribution of Registration Pages (with PSM) by Popularity")
-plt.legend()
-plt.tight_layout()
+plt.xlabel("Popularity (Rank Ranges)")
+plt.ylabel("% relative to Registration Pages")
+plt.title("Percentages of Registration Pages with PSM by Popularity")
 plt.grid(True, linestyle="--", alpha=0.4)
+plt.tight_layout()
+plt.legend()
 
 output(plt, "psm-register-pages-popularity.pdf")
