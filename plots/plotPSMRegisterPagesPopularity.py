@@ -62,7 +62,7 @@ plt.plot(
     label="Registration Pages with PSM (%)",
 )
 
-plt.xticks(x_edges, rotation=90)
+plt.xticks(x_edges[::2], rotation=90)
 plt.xlabel("Popularity (Rank Ranges)")
 plt.ylabel("% relative to Registration Pages")
 plt.title("Percentages of Registration Pages with PSM by Popularity")
