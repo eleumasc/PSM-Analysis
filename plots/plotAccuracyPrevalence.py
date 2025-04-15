@@ -16,7 +16,7 @@ plt.scatter(accuracies, prevalences, color="blue")
 
 plt.xlabel("Accuracy")
 plt.ylabel("Registration Pages")
-plt.title("Accuracy vs Prevalence of Detected PSMs")
+plt.title("Accuracy vs Prevalence of PSMs")
 plt.grid(True)
 plt.xlim(-1, 1)
 
