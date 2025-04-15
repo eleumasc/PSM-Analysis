@@ -10,7 +10,6 @@ import { openDoCo } from "../core/DoCo";
 import { ROCKYOU2021_PASSWORDS_ROWS } from "../data/rockyou2021";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import { TRUTH } from "../data/truth";
-import { weightedSpearman } from "../util/weightedSpearman";
 import { writeFileSync } from "fs";
 import {
   detectPSM,
@@ -28,9 +27,17 @@ import {
   getIPFAbstractResultFromIPFResult,
 } from "../core/psm/InputPasswordFieldAbstractResult";
 
-type PSMRegisterPage = {
+type SiteDetail = {
+  name: string;
+  rank: number;
+};
+
+type RegisterPage = {
   registerPageKey: string;
-  sites: string[];
+  sites: SiteDetail[];
+};
+
+type PSMRegisterPage = RegisterPage & {
   maxAccuracyPsfDetail: PSFDetail;
 };
 
@@ -55,18 +62,23 @@ export default function cmdMeasure(args: {
   const registrationPagesCollection = dc.getCollectionById(
     psmAnalysisCollection.parentId!
   );
+  const sitesArray = dc.getDocumentData(
+    dc.getCollectionById(registrationPagesCollection.parentId!).id
+  ) as string[];
 
   // Register Pages
 
   let accessedSitesCount = 0;
-  let registerPagesSitesCount = 0;
-  let registerPagesCount = 0;
+  const registerPageSitesMap = new Map<string, SiteDetail[]>();
 
-  const registerPageSitesMap = new Map<string, string[]>();
-
-  for (const { id: documentId, name: site } of dc.getDocumentsByCollection(
+  for (const { id: documentId, name: siteName } of dc.getDocumentsByCollection(
     registrationPagesCollection.id
   )) {
+    const site: SiteDetail = {
+      name: siteName,
+      rank: sitesArray.indexOf(siteName),
+    };
+
     const completion = dc.getDocumentData(
       documentId
     ) as Completion<SearchRegisterPageResult>;
@@ -78,17 +90,17 @@ export default function cmdMeasure(args: {
       value: { registerPageUrl },
     } = completion;
     if (registerPageUrl === null) continue;
-    registerPagesSitesCount += 1;
 
-    {
-      const registerPageKey = toSimplifiedURL(registerPageUrl).toString();
-      registerPageSitesMap.set(registerPageKey, [
-        ...(registerPageSitesMap.get(registerPageKey) ?? []),
-        site,
-      ]);
-    }
-    registerPagesCount = registerPageSitesMap.size;
+    const registerPageKey = toSimplifiedURL(registerPageUrl).toString();
+    registerPageSitesMap.set(registerPageKey, [
+      ...(registerPageSitesMap.get(registerPageKey) ?? []),
+      site,
+    ]);
   }
+
+  const registerPages = [...registerPageSitesMap.entries()].map(
+    ([registerPageKey, sites]): RegisterPage => ({ registerPageKey, sites })
+  );
 
   // PSM Analysis
 
@@ -100,8 +112,6 @@ export default function cmdMeasure(args: {
   let psmServerSideRegisterPagesCount = 0;
   let psmServerSideCrossOriginRegisterPagesCount = 0;
   let psmServerSideInsecureRegisterPagesCount = 0;
-  let psmSitesCount = 0;
-  const psmSites: string[] = [];
   const psmConfusionMatrix = new ConfusionMatrix<string>();
   const psmRegisterPages: PSMRegisterPage[] = [];
   const filteringDetail: ScoreCandidateFilteringDetail = {};
@@ -175,8 +185,6 @@ export default function cmdMeasure(args: {
         psmClientSideCrossOriginRegisterPagesCount += 1;
       }
     }
-    psmSitesCount += registerPageSitesMap.get(registerPageKey)!.length;
-    psmSites.push(...registerPageSitesMap.get(registerPageKey)!);
 
     assert(analysisCompletion);
     if (isFailure(analysisCompletion)) continue;
@@ -232,10 +240,17 @@ export default function cmdMeasure(args: {
     )
   );
 
+  // // missing reg. pages for heuristics evaluation
+  // console.log(
+  //   _.difference(
+  //     [...TRUTH.keys()],
+  //     Object.values(psmConfusionMatrix.get()).flat()
+  //   )
+  // );
+
   const report = {
     accessedSitesCount,
-    registerPagesSitesCount,
-    registerPagesCount,
+    registerPages,
     successfulDetectRegisterPagesCount,
     successfulAnalysisRegisterPagesCount,
     filteringDetail,
@@ -245,8 +260,6 @@ export default function cmdMeasure(args: {
     psmServerSideRegisterPagesCount,
     psmServerSideCrossOriginRegisterPagesCount,
     psmServerSideInsecureRegisterPagesCount,
-    psmSitesCount,
-    psmSites,
     psmConfusionMatrix: psmConfusionMatrix.get(),
     psmClusters,
   };

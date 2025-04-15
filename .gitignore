@@ -6,3 +6,4 @@ psm-analysis.sqlite-journal
 nohup.out
 report.json
 plots/out
+__pycache__
