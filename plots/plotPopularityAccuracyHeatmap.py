@@ -2,8 +2,8 @@ from core import data, output
 import matplotlib.pyplot as plt
 import numpy as np
 
-bucket_size = 1000
-num_buckets = 50
+bucket_size = 5000
+num_buckets = 10
 accuracy_bins = np.linspace(-1.0, 1.0, 21)
 
 
@@ -29,7 +29,7 @@ for i in range(num_buckets):
     hist, _ = np.histogram(accuracy_values, bins=accuracy_bins)
     heatmap[:, i] = hist
 
-plt.figure(figsize=(12, 6))
+plt.figure(figsize=(8, 6))
 extent = [0, num_buckets * bucket_size, -1.0, 1.0]
 aspect = "auto"
 
@@ -43,7 +43,7 @@ for y in np.linspace(-1.0, 1.0, 21):
     plt.axhline(y=y, color="white", linewidth=0.5, alpha=0.3)
 
 plt.colorbar(label="Registration Pages")
-plt.xticks(ticks=[i * bucket_size for i in range(0, num_buckets + 1, 5)], rotation=90)
+plt.xticks(ticks=[i * bucket_size for i in range(0, num_buckets + 1)], rotation=90)
 plt.yticks(ticks=np.linspace(-1.0, 1.0, 11))
 plt.xlabel("Popularity (Rank Range)")
 plt.ylabel("Accuracy")
