@@ -101,20 +101,28 @@ export default function cmdMeasure(args: {
   const registerPages = [...registerPageSitesMap.entries()].map(
     ([registerPageKey, sites]): RegisterPage => ({ registerPageKey, sites })
   );
+  const registerPagesMap = new Map(
+    registerPages.map((registerPage) => [
+      registerPage.registerPageKey,
+      registerPage,
+    ])
+  );
 
   // PSM Analysis
 
   let successfulDetectRegisterPagesCount = 0;
   let successfulAnalysisRegisterPagesCount = 0;
-  let psmRegisterPagesCount = 0;
-  let psmClientSideRegisterPagesCount = 0;
-  let psmClientSideCrossOriginRegisterPagesCount = 0;
-  let psmServerSideRegisterPagesCount = 0;
-  let psmServerSideCrossOriginRegisterPagesCount = 0;
-  let psmServerSideInsecureRegisterPagesCount = 0;
+  const psmDetectedRegisterPages: RegisterPage[] = [];
   const psmConfusionMatrix = new ConfusionMatrix<string>();
   const psmRegisterPages: PSMRegisterPage[] = [];
   const filteringDetail: ScoreCandidateFilteringDetail = {};
+  const psmDetectedRegisterPagesDetail = {
+    clientSide: 0,
+    clientSideCrossOrigin: 0,
+    serverSide: 0,
+    serverSideCrossOrigin: 0,
+    serverSideInsecure: 0,
+  };
 
   for (const {
     id: documentId,
@@ -158,23 +166,23 @@ export default function cmdMeasure(args: {
 
     if (!psmDetected) continue;
     const { scoreTypes } = psmDetected;
-    psmRegisterPagesCount += 1;
+    psmDetectedRegisterPages.push(registerPagesMap.get(registerPageKey)!);
     const serverSideScoreType = scoreTypes.find(
       (scoreType) => scoreType.kind === "xhrRequest"
     );
     if (serverSideScoreType) {
-      psmServerSideRegisterPagesCount += 1;
+      psmDetectedRegisterPagesDetail.serverSide += 1;
       if (
         new URL(serverSideScoreType.url).origin !==
         new URL(registerPageKey).origin
       ) {
-        psmServerSideCrossOriginRegisterPagesCount += 1;
+        psmDetectedRegisterPagesDetail.serverSideCrossOrigin += 1;
       }
       if (new URL(serverSideScoreType.url).protocol !== "https:") {
-        psmServerSideInsecureRegisterPagesCount += 1;
+        psmDetectedRegisterPagesDetail.serverSideInsecure += 1;
       }
     } else {
-      psmClientSideRegisterPagesCount += 1;
+      psmDetectedRegisterPagesDetail.clientSide += 1;
       if (
         (scoreTypes as FunctionCallAbstractCallType[]).some(
           (scoreType) =>
@@ -182,7 +190,7 @@ export default function cmdMeasure(args: {
             new URL(registerPageKey).origin
         )
       ) {
-        psmClientSideCrossOriginRegisterPagesCount += 1;
+        psmDetectedRegisterPagesDetail.clientSideCrossOrigin += 1;
       }
     }
 
@@ -253,15 +261,11 @@ export default function cmdMeasure(args: {
     registerPages,
     successfulDetectRegisterPagesCount,
     successfulAnalysisRegisterPagesCount,
-    filteringDetail,
-    psmRegisterPagesCount,
-    psmClientSideRegisterPagesCount,
-    psmClientSideCrossOriginRegisterPagesCount,
-    psmServerSideRegisterPagesCount,
-    psmServerSideCrossOriginRegisterPagesCount,
-    psmServerSideInsecureRegisterPagesCount,
+    psmDetectedRegisterPages,
     psmConfusionMatrix: psmConfusionMatrix.get(),
     psmClusters,
+    filteringDetail,
+    psmDetectedRegisterPagesDetail,
   };
   writeFileSync("report.json", JSON.stringify(report));
 
