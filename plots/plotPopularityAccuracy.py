@@ -50,4 +50,4 @@ plt.ylabel("Accuracy")
 plt.title("Popularity of Registration Pages vs Accuracy of PSMs")
 plt.tight_layout()
 
-output(plt, "popularity-accuracy-heatmap.pdf")
+output(plt, "popularity-accuracy.pdf")
