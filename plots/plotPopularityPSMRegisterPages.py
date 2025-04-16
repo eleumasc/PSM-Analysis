@@ -1,6 +1,9 @@
 from core import data, output
 import matplotlib.pyplot as plt
 
+bucket_size = 1000
+num_buckets = 50
+
 
 def countRegisterPages(size, offset):
     return len(
@@ -28,9 +31,6 @@ def countPSMRegisterPages(size, offset):
         ]
     )
 
-
-bucket_size = 1000
-num_buckets = 50
 
 psm_regpages_y_values = []
 regpages_y_values = []
@@ -70,4 +70,4 @@ plt.grid(True, linestyle="--", alpha=0.4)
 plt.tight_layout()
 plt.legend()
 
-output(plt, "psm-register-pages-popularity.pdf")
+output(plt, "popularity-psm-register-pages.pdf")
