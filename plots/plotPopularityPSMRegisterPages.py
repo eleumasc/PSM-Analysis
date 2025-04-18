@@ -1,8 +1,8 @@
 from core import data, output
 import matplotlib.pyplot as plt
 
-bucket_size = 1000
-num_buckets = 50
+bucket_size = 2500
+num_buckets = 20
 
 
 def countRegisterPages(size, offset):
@@ -53,16 +53,15 @@ x_centers = [x_edges[i] + bucket_size / 2 for i in range(num_buckets)]
 
 plt.figure(figsize=(8, 6))
 
-plt.plot(
+plt.bar(
     x_centers,
     percentages,
-    marker="o",
-    linestyle="-",
+    width=bucket_size,
     color="purple",
     label="Registration Pages with PSM (%)",
 )
 
-plt.xticks(x_edges[::2], rotation=90)
+plt.xticks(x_edges, rotation=90)
 plt.xlabel("Popularity (Rank Ranges)")
 plt.ylabel("% relative to Registration Pages")
 plt.title("Percentages of Registration Pages with PSM by Popularity")
