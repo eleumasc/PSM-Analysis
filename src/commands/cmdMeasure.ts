@@ -6,6 +6,7 @@ import { Completion, isFailure } from "../util/Completion";
 import { getPSMAccuracy, PSMAccuracyScoreEntry } from "../core/psm/PSMAccuracy";
 import { getScoreTable } from "../core/psm/ScoreTable";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
+import { isSameSite } from "../util/site";
 import { openDoCo } from "../core/DoCo";
 import { ROCKYOU2021_PASSWORDS_ROWS } from "../data/rockyou2021";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
@@ -118,10 +119,10 @@ export default function cmdMeasure(args: {
   const filteringDetail: ScoreCandidateFilteringDetail = {};
   const psmDetectedRegisterPagesDetail = {
     clientSide: 0,
-    clientSideCrossOrigin: 0,
+    clientSideCrossSite: 0,
     serverSide: 0,
-    serverSideCrossOrigin: 0,
-    serverSideInsecure: 0,
+    serverSideCrossSite: 0,
+    serverSideNonSecure: 0,
   };
 
   for (const {
@@ -173,24 +174,34 @@ export default function cmdMeasure(args: {
     if (serverSideScoreType) {
       psmDetectedRegisterPagesDetail.serverSide += 1;
       if (
-        new URL(serverSideScoreType.url).origin !==
-        new URL(registerPageKey).origin
+        !isSameSite(new URL(serverSideScoreType.url), new URL(registerPageKey))
       ) {
-        psmDetectedRegisterPagesDetail.serverSideCrossOrigin += 1;
+        psmDetectedRegisterPagesDetail.serverSideCrossSite += 1;
+        // console.log("serverSideCrossSite", registerPageKey, serverSideScoreType.url);
       }
       if (new URL(serverSideScoreType.url).protocol !== "https:") {
-        psmDetectedRegisterPagesDetail.serverSideInsecure += 1;
+        psmDetectedRegisterPagesDetail.serverSideNonSecure += 1;
       }
     } else {
+      assert(
+        scoreTypes.every((scoreType) => scoreType.kind === "functionCall")
+      );
       psmDetectedRegisterPagesDetail.clientSide += 1;
       if (
-        (scoreTypes as FunctionCallAbstractCallType[]).some(
+        scoreTypes.some(
           (scoreType) =>
-            new URL(scoreType.sourceLoc[0]).origin !==
-            new URL(registerPageKey).origin
+            !isSameSite(
+              new URL(scoreType.sourceLoc[0]),
+              new URL(registerPageKey)
+            )
         )
       ) {
-        psmDetectedRegisterPagesDetail.clientSideCrossOrigin += 1;
+        psmDetectedRegisterPagesDetail.clientSideCrossSite += 1;
+        // console.log(
+        //   "clientSideCrossSite",
+        //   registerPageKey,
+        //   scoreTypes.map((scoreType) => scoreType.sourceLoc[0])
+        // );
       }
     }
 
@@ -248,8 +259,8 @@ export default function cmdMeasure(args: {
     )
   );
 
-  // // missing reg. pages for heuristics evaluation
   // console.log(
+  //  "missing register pages for validation of analysis pipeline",
   //   _.difference(
   //     [...TRUTH.keys()],
   //     Object.values(psmConfusionMatrix.get()).flat()
