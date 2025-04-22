@@ -15,7 +15,7 @@ plt.figure(figsize=(8, 6))
 plt.scatter(accuracies, prevalences, color="blue")
 
 plt.xlabel("Accuracy")
-plt.ylabel("Registration Pages")
+plt.ylabel("Prevalence (number of registration pages)")
 plt.title("Accuracy vs Prevalence of PSMs")
 plt.grid(True)
 plt.xlim(-1, 1)
