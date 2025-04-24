@@ -1,4 +1,5 @@
-import { ROCKYOU2021_PASSWORDS_ROWS } from "./rockyou2021";
+import assert from "assert";
+import { readFileSync } from "fs";
 
 export const TEST_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
 
@@ -55,6 +56,27 @@ export function getMonotoneTestPasswords(): string[] {
   return MONOTONE_TEST_PASSWORDS_SEQUENCES.flat();
 }
 
-export function getRockYou2021Passwords(): string[] {
-  return ROCKYOU2021_PASSWORDS_ROWS.map(([password]) => password);
+export type DatasetEntry = [string, number];
+
+let _datasetEntries: DatasetEntry[];
+export function getDatasetEntries(): DatasetEntry[] {
+  if (!_datasetEntries) {
+    const data = JSON.parse(readFileSync("dataset.json", "utf8")) as unknown;
+    assert(Array.isArray(data));
+    assert(
+      data.every(
+        (e): e is DatasetEntry =>
+          Array.isArray(e) &&
+          e.length === 2 &&
+          typeof e[0] === "string" &&
+          typeof e[1] === "number"
+      )
+    );
+    _datasetEntries = data;
+  }
+  return _datasetEntries;
+}
+
+export function getDatasetPasswords(): string[] {
+  return getDatasetEntries().map(([password]) => password);
 }

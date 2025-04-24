@@ -23,7 +23,7 @@ import {
 } from "../util/Completion";
 import {
   getMonotoneTestPasswords,
-  getRockYou2021Passwords,
+  getDatasetPasswords,
   TEST_PASSWORD,
 } from "../data/passwords";
 import inputPasswordField, {
@@ -248,7 +248,7 @@ export async function runAnalyze(
 
       let analysisChunkKeys: string[] = [];
       for (const [bucket, i] of buckets(
-        getRockYou2021Passwords(),
+        getDatasetPasswords(),
         BUCKET_SIZE
       ).map((x, i): [typeof x, number] => [x, i])) {
         const analysisChunkKey = getChunkKey(`analysis${i}`);

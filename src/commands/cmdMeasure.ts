@@ -3,12 +3,12 @@ import assert from "assert";
 import ConfusionMatrix from "../util/ConfusionMatrix";
 import toSimplifiedURL from "../util/toSimplifiedURL";
 import { Completion, isFailure } from "../util/Completion";
+import { getDatasetEntries } from "../data/passwords";
 import { getPSMAccuracy, PSMAccuracyScoreEntry } from "../core/psm/PSMAccuracy";
 import { getScoreTable } from "../core/psm/ScoreTable";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { isSameSite } from "../util/site";
 import { openDoCo } from "../core/DoCo";
-import { ROCKYOU2021_PASSWORDS_ROWS } from "../data/rockyou2021";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
@@ -24,7 +24,6 @@ import {
 } from "./cmdAnalyze";
 import {
   AbstractCallType,
-  FunctionCallAbstractCallType,
   getIPFAbstractResultFromIPFResult,
 } from "../core/psm/InputPasswordFieldAbstractResult";
 
@@ -223,7 +222,7 @@ export default function cmdMeasure(args: {
       const scoreTypeIndex = scoreTypes.indexOf(scoreType);
       assert(scoreTypeIndex !== -1);
       const scoreEntries = _.map(
-        ROCKYOU2021_PASSWORDS_ROWS,
+        getDatasetEntries(),
         ([password, frequency], rankIndex): PSMAccuracyScoreEntry => {
           const scoreTableRow = scoreTable.find(
             ({ password: passwordSearched }) => passwordSearched === password
