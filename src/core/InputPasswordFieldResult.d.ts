@@ -40,7 +40,7 @@ export type SerializableValue =
   | {
       type: "object";
       id: number;
-      constructor: string;
+      constructor: string | null;
       value: Record<string, SerializableValue> | null;
     }
   | { type: "function"; id: number };

@@ -16,7 +16,7 @@ export type ScoreCandidateOccurrence = {
   mutationKeys: MutationKey[];
 };
 
-export function getScoreCandidatesFromPFIAbstractResult(
+export function getScoreCandidatesFromIPFAbstractResult(
   ipfAbstractResult: InputPasswordFieldAbstractResult
 ): ScoreCandidate[] {
   const candidateMap = new Map<string, ScoreCandidate>();

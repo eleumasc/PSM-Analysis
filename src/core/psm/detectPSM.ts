@@ -9,7 +9,7 @@ import {
   reUpper
   } from "../../data/regexps";
 import {
-  getScoreCandidatesFromPFIAbstractResult,
+  getScoreCandidatesFromIPFAbstractResult,
   ScoreCandidate,
 } from "./ScoreCandidate";
 import {
@@ -55,7 +55,7 @@ export function detectPSM(
   ipfAbstractResult: InputPasswordFieldAbstractResult
 ): PSMDetail | null {
   const scoreCandidates =
-    getScoreCandidatesFromPFIAbstractResult(ipfAbstractResult);
+    getScoreCandidatesFromIPFAbstractResult(ipfAbstractResult);
 
   const scoreTypes = scoreCandidates
     .filter(
@@ -74,7 +74,7 @@ export function getScoreCandidateFilteringDetail(
   ipfAbstractResult: InputPasswordFieldAbstractResult
 ): ScoreCandidateFilteringDetail {
   const scoreCandidates =
-    getScoreCandidatesFromPFIAbstractResult(ipfAbstractResult);
+    getScoreCandidatesFromIPFAbstractResult(ipfAbstractResult);
 
   const allCandidatesCount = scoreCandidates.length;
 

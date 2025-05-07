@@ -46,6 +46,21 @@ export default class DoCoLite {
     return this.getCollectionById(id);
   }
 
+  importCollection(src: Collection): Collection {
+    const { id, parentId, name, meta } = src;
+    const { db } = this;
+    const stmt = db.prepare(
+      "INSERT INTO collections (id, parent, name, meta) VALUES (?, ?, ?, ?)"
+    );
+    const insertedId = stmt.run([
+      id,
+      parentId,
+      name,
+      meta ? JSON.stringify(meta) : null,
+    ]).lastInsertRowid as number;
+    return this.getCollectionById(insertedId);
+  }
+
   getCollectionById(id: number): Collection {
     const { db } = this;
     const stmt = db.prepare("SELECT * FROM collections WHERE id = ?");
@@ -97,6 +112,13 @@ export default class DoCoLite {
     }
   }
 
+  getAllCollections(): Collection[] {
+    const { db } = this;
+    const stmt = db.prepare("SELECT * FROM collections ORDER BY id");
+    const rows = stmt.all();
+    return rows.map((row) => _toCollection(row));
+  }
+
   createDocument(collectionId: number, name: string, data: any): Document {
     const { db } = this;
     const stmt = db.prepare(
@@ -105,6 +127,17 @@ export default class DoCoLite {
     const id = stmt.run([collectionId, name, JSON.stringify(data)])
       .lastInsertRowid as number;
     return this.getDocumentById(id);
+  }
+
+  importDocument(src: Document, data: any): Document {
+    const { id, collectionId, name } = src;
+    const { db } = this;
+    const stmt = db.prepare(
+      "INSERT INTO documents (id, collection, name, data) VALUES (?, ?, ?, ?)"
+    );
+    const insertedId = stmt.run([id, collectionId, name, JSON.stringify(data)])
+      .lastInsertRowid as number;
+    return this.getDocumentById(insertedId);
   }
 
   getDocumentData(documentId: number): any {
@@ -164,7 +197,7 @@ export default class DoCoLite {
   getDocumentsByCollection(collectionId: number): Document[] {
     const { db } = this;
     const stmt = db.prepare(
-      "SELECT id, collection, name FROM documents WHERE collection = ?"
+      "SELECT id, collection, name FROM documents WHERE collection = ? ORDER BY id"
     );
     const rows = stmt.all([collectionId]);
     return rows.map((row) => _toDocument(row));

@@ -113,9 +113,9 @@ function getAbstractTraceFromTrace(
   };
 }
 
-function getAbstractCallsFromFunctionCall(
+export function getAbstractCallsFromFunctionCall(
   functionCall: FunctionCall
-): AbstractCall[] {
+): (AbstractCall & { type: FunctionCallAbstractCallType })[] {
   const { sourceLoc, ret } = functionCall;
   if (mayBeScore(ret)) {
     return [
@@ -132,7 +132,7 @@ function getAbstractCallsFromFunctionCall(
   ) {
     assert(ret.value);
     const obj = ret.value;
-    return Reflect.ownKeys(obj).flatMap((objKey): AbstractCall[] => {
+    return Reflect.ownKeys(obj).flatMap((objKey) => {
       assert(typeof objKey === "string");
       const objValue = obj[objKey];
       return mayBeScore(objValue)
@@ -149,9 +149,9 @@ function getAbstractCallsFromFunctionCall(
   }
 }
 
-function getAbstractCallsFromXHRRequest(
+export function getAbstractCallsFromXHRRequest(
   xhrRequest: XHRRequest
-): AbstractCall[] {
+): (AbstractCall & { type: XHRRequestAbstractCallType })[] {
   const { url: rawUrl, responseText } = xhrRequest;
   const cookedUrl = new URL(rawUrl);
   const url = `${cookedUrl.origin}${cookedUrl.pathname}`;
@@ -167,7 +167,7 @@ function getAbstractCallsFromXHRRequest(
     ];
   } else if (typeof response === "object" && response) {
     const obj = response;
-    return Reflect.ownKeys(obj).flatMap((objKey): AbstractCall[] => {
+    return Reflect.ownKeys(obj).flatMap((objKey) => {
       assert(typeof objKey === "string");
       const objValue = obj[objKey];
       return mayBeScore(objValue)
