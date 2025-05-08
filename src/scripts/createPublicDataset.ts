@@ -1,6 +1,6 @@
 import _ from "lodash";
 import assert from "assert";
-import crypto from "crypto";
+import createSeededRandom from "../util/seededRandom";
 import { DatasetEntry } from "../data/passwords";
 import { readFileSync, writeFileSync } from "fs";
 import {
@@ -14,22 +14,13 @@ const entries = JSON.parse(
   readFileSync("dataset.json", "utf8")
 ) as DatasetEntry[];
 
+const rnd = createSeededRandom(0);
 function generateRedactedPassword(password: string): string {
-  const hash = crypto.createHash("sha256").update(password).digest("hex");
-
-  let hashIndex = 0;
-  function seededRandom(): number {
-    if (hashIndex + 4 > hash.length) hashIndex = 0;
-    const slice = hash.slice(hashIndex, hashIndex + 4);
-    hashIndex += 4;
-    return parseInt(slice, 16) / 0xffff;
-  }
-
   function part(re: () => RegExp, charSet: string): string {
     const count = [...password.matchAll(re())].length;
     let result = "";
     for (let i = 0; i < count; i++) {
-      const randIndex = Math.floor(seededRandom() * charSet.length);
+      const randIndex = Math.floor(rnd() * charSet.length);
       result += charSet[randIndex];
     }
     return result;
@@ -45,9 +36,28 @@ function generateRedactedPassword(password: string): string {
   return redactedPassword;
 }
 
+const uniqueRedactedPasswords = new Set<string>();
+function generateUniqueRedactedPassword(password: string): string {
+  let ttl = entries.length;
+  let redactedPassword;
+  while (
+    ((redactedPassword = generateRedactedPassword(password)),
+    uniqueRedactedPasswords.has(redactedPassword))
+  ) {
+    ttl -= 1;
+    if (ttl === 0) {
+      throw new Error(
+        `Cannot generate unique redacted password (password is ${password})`
+      );
+    }
+  }
+  uniqueRedactedPasswords.add(redactedPassword);
+  return redactedPassword;
+}
+
 const redactedEntries = entries.map(
   ([password, frequency]): DatasetEntry => [
-    generateRedactedPassword(password),
+    generateUniqueRedactedPassword(password),
     frequency,
   ]
 );

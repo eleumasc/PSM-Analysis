@@ -1,5 +1,4 @@
 node_modules/
-lib/
 build/
 psm-analysis.sqlite
 psm-analysis.sqlite-journal
@@ -8,3 +7,4 @@ report.json
 plots/out
 __pycache__
 dataset.json
+dataset-*.json
