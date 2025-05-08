@@ -1,7 +1,6 @@
 {
   "name": "psm-analysis",
   "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
     "init": "npx playwright install --no-shell",
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -11,7 +10,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "description": "",
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.8",
