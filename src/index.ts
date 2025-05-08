@@ -27,7 +27,7 @@ async function main() {
       (yargs) =>
         yargs
           .positional("sites-id", {
-            describe: "ID of the site list",
+            describe: "ID of the sites collection",
             type: "number",
             demandOption: true,
           })
@@ -68,7 +68,7 @@ async function main() {
       (yargs) =>
         yargs
           .positional("register-pages-id", {
-            describe: "ID of the register page search analysis",
+            describe: "ID of the register pages collection",
             type: "number",
             demandOption: true,
           })
@@ -113,12 +113,12 @@ async function main() {
 
     .command(
       "measure <psm-analysis-id>",
-      "Detect PSM from a PSM analysis",
+      "Perform data processing from a PSM analysis",
       (yargs) =>
         yargs
           .positional("psm-analysis-id", {
             type: "number",
-            describe: "ID of the PSM analysis",
+            describe: "ID of the PSM analysis collection",
             demandOption: true,
           })
           .option("db-filepath", {
