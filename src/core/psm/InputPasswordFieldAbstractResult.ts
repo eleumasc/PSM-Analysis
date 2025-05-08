@@ -63,22 +63,6 @@ export function getIPFAbstractResultFromIPFResult(
       ): AbstractTrace[] =>
         traceArray
           .filter((x): x is NonNullable<typeof x> => Boolean(x))
-          .map((trace): Trace => {
-            const { functionCalls, xhrRequests, mutationKeys } = trace;
-            return {
-              functionCalls,
-              xhrRequests: xhrRequests.filter((xhrRequest) => {
-                const { url, body } = xhrRequest;
-                return (
-                  url.includes(encodeURIComponent(password)) ||
-                  body.includes(password) ||
-                  body.includes(JSON.stringify(password)) ||
-                  body.includes(encodeURIComponent(password))
-                );
-              }),
-              mutationKeys,
-            };
-          })
           .map(
             (trace): AbstractTrace =>
               getAbstractTraceFromTrace(trace, capturePhase)

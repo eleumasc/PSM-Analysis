@@ -20,14 +20,14 @@ import {
   PSM_ANALYSIS_COLLECTION_TYPE,
 } from "../commands/cmdAnalyze";
 
-const actualEntries = JSON.parse(
+const goldenEntries = JSON.parse(
   readFileSync("dataset.json", "utf8")
 ) as DatasetEntry[];
 
 const publicEntries = JSON.parse(
   readFileSync("dataset-pub.json", "utf8")
 ) as DatasetEntry[];
-assert(publicEntries.length === actualEntries.length);
+assert(publicEntries.length === goldenEntries.length);
 
 const dcSrc = openDoCo(process.argv[2]);
 
@@ -64,36 +64,21 @@ function redactIpfResult(
 function redactIpfDetail(
   src: InputPasswordFieldDetail
 ): InputPasswordFieldDetail {
-  const { password: actualPassword, fillTrace, blurTrace } = src;
-  const passwordIndex = actualEntries.findIndex(
-    ([password]) => password === actualPassword
+  const { password: goldenPassword, fillTrace, blurTrace } = src;
+  const passwordIndex = goldenEntries.findIndex(
+    ([password]) => password === goldenPassword
   );
-  assert(passwordIndex !== -1, `Password not found: ${actualPassword}`);
+  assert(passwordIndex !== -1, `Password not found: ${goldenPassword}`);
   const publicPassword = publicEntries[passwordIndex][0];
   return {
     password: publicPassword,
-    fillTrace:
-      fillTrace && redactTrace(fillTrace, actualPassword, publicPassword),
-    blurTrace:
-      blurTrace && redactTrace(blurTrace, actualPassword, publicPassword),
+    fillTrace: fillTrace && redactTrace(fillTrace, publicPassword),
+    blurTrace: blurTrace && redactTrace(blurTrace, publicPassword),
   };
 }
 
-function redactTrace(
-  src: Trace,
-  actualPassword: string,
-  publicPassword: string
-): Trace {
-  const { functionCalls, xhrRequests: xhrRequestsBefore, mutationKeys } = src;
-  const xhrRequests = xhrRequestsBefore.filter((xhrRequest) => {
-    const { url, body } = xhrRequest;
-    return (
-      url.includes(encodeURIComponent(actualPassword)) ||
-      body.includes(actualPassword) ||
-      body.includes(JSON.stringify(actualPassword)) ||
-      body.includes(encodeURIComponent(actualPassword))
-    );
-  });
+function redactTrace(src: Trace, publicPassword: string): Trace {
+  const { functionCalls, xhrRequests, mutationKeys } = src;
   const result = {
     functionCalls: functionCalls.map((functionCall) =>
       redactFunctionCall(functionCall, publicPassword)
