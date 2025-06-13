@@ -7,11 +7,11 @@ A tool for the automated analysis of deployed Password Strength Meters (PSMs).
 - Node.js 20 or above
 - SQLite 3 or above
 
-## Build
+## Setup
 
 1. Clone this repository: `git clone https://github.com/eleumasc/PSM-Analysis && cd PSM-Analysis`
 2. Install the dependencies: `npm i`
-3. Install Playwright: `npx playwright install`
+3. Run the init script: `npm run init`
 4. Build: `npm run build`
 5. Choose a password dataset and store it in the project root with name `dataset.json` (see details in Section "Password Datasets")
 
