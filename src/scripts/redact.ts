@@ -1,8 +1,8 @@
 import _ from "lodash";
 import assert from "assert";
+import openDocumentStore from "../core/openDocumentStore";
 import toSimplifiedURL from "../util/toSimplifiedURL";
 import { DatasetEntry } from "../data/passwords";
-import { openDoCo } from "../core/DoCo";
 import { readFileSync } from "fs";
 import {
   getAbstractCallsFromFunctionCall,
@@ -29,29 +29,29 @@ const publicEntries = JSON.parse(
 ) as DatasetEntry[];
 assert(publicEntries.length === goldenEntries.length);
 
-const dcSrc = openDoCo(process.argv[2]);
+const srcStore = openDocumentStore(process.argv[2]);
 
-const dcDst = openDoCo(process.argv[3]);
+const dstStore = openDocumentStore(process.argv[3]);
 
-for (const collection of dcSrc.getAllCollections()) {
-  if (!dcDst.findCollectionById(collection.id)) {
-    dcDst.importCollection(collection);
+for (const collection of srcStore.getAllCollections()) {
+  if (!dstStore.findCollectionById(collection.id)) {
+    dstStore.importCollection(collection);
   }
   const { name, parentId } = collection;
   const isChunksCollection =
     name === CHUNKS_COLLECTION_NAME &&
     parentId &&
-    dcSrc.getCollectionById(parentId).meta?.type ===
+    srcStore.getCollectionById(parentId).meta?.type ===
       PSM_ANALYSIS_COLLECTION_TYPE;
 
-  for (const document of dcSrc.getDocumentsByCollection(collection.id)) {
-    if (dcDst.findDocumentById(document.id)) continue;
-    const data = dcSrc.getDocumentData(document.id);
+  for (const document of srcStore.getDocumentsByCollection(collection.id)) {
+    if (dstStore.findDocumentById(document.id)) continue;
+    const data = srcStore.getDocumentData(document.id);
     const redactedData =
       isChunksCollection && /^analysis[0-9]+:/.test(document.name)
         ? redactIpfResult(data)
         : data;
-    dcDst.importDocument(document, redactedData);
+    dstStore.importDocument(document, redactedData);
   }
 }
 

@@ -1,10 +1,10 @@
 import _ from "lodash";
 import assert from "assert";
 import currentTime from "../util/currentTime";
+import openDocumentStore from "../core/openDocumentStore";
 import searchRegisterPage from "../core/searchRegisterPage";
 import useBrowser from "../util/useBrowser";
 import { bomb } from "../util/timeout";
-import { openDoCo } from "../core/DoCo";
 import { processTaskQueue } from "../util/TaskQueue";
 import { SITES_COLLECTION_TYPE, SITES_DOCUMENT_NAME } from "./cmdLoadSiteList";
 import { toCompletion } from "../util/Completion";
@@ -28,30 +28,30 @@ export default async function cmdSearchRegisterPage(
     noHeadlessBrowser: boolean;
   }
 ) {
-  const dc = openDoCo();
+  const store = openDocumentStore();
 
   const outputCollection =
     args.action === "create"
-      ? dc.createCollection(
+      ? store.createCollection(
           (() => {
-            const sitesCollection = dc.getCollectionById(args.sitesId);
+            const sitesCollection = store.getCollectionById(args.sitesId);
             assert(sitesCollection.meta.type === SITES_COLLECTION_TYPE);
             return sitesCollection.id;
           })(),
           currentTime().toString(),
           { type: REGISTER_PAGES_COLLECTION_TYPE }
         )
-      : dc.getCollectionById(args.outputId);
+      : store.getCollectionById(args.outputId);
   assert(outputCollection.meta.type === REGISTER_PAGES_COLLECTION_TYPE);
   const sitesCollectionId = outputCollection.parentId!;
 
   const tbdSites = _.difference(
     // all sites
-    dc.getDocumentData(
-      dc.getDocumentByName(sitesCollectionId, SITES_DOCUMENT_NAME).id
+    store.getDocumentData(
+      store.getDocumentByName(sitesCollectionId, SITES_DOCUMENT_NAME).id
     ) as string[],
     // processed sites
-    dc
+    store
       .getDocumentsByCollection(outputCollection.id)
       .map((document) => document.name)
   );
@@ -68,7 +68,7 @@ export default async function cmdSearchRegisterPage(
         headlessBrowser: !args.noHeadlessBrowser,
       });
       console.log(`end analysis ${site} [${queueIndex}]`);
-      dc.createDocument(outputCollection.id, site, result);
+      store.createDocument(outputCollection.id, site, result);
     }
   );
 

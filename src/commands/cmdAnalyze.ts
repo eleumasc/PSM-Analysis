@@ -3,6 +3,7 @@ import assert from "assert";
 import buckets from "../util/buckets";
 import currentTime from "../util/currentTime";
 import installAnalysis from "../core/installAnalysis";
+import openDocumentStore from "../core/openDocumentStore";
 import toSimplifiedURL from "../util/toSimplifiedURL";
 import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
@@ -11,7 +12,6 @@ import { detectPSM } from "../core/psm/detectPSM";
 import { getIPFAbstractResultFromIPFResult } from "../core/psm/InputPasswordFieldAbstractResult";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { mayDetectPSM } from "../core/psm/mayDetectPSM";
-import { openDoCo } from "../core/DoCo";
 import { processTaskQueue } from "../util/TaskQueue";
 import { REGISTER_PAGES_COLLECTION_TYPE } from "./cmdSearchRegisterPage";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
@@ -65,13 +65,15 @@ export default async function cmdAnalyze(
     noHeadlessBrowser: boolean;
   }
 ) {
-  const dc = openDoCo();
+  const store = openDocumentStore();
 
   const outputCollection =
     args.action === "create"
-      ? dc.createCollection(
+      ? store.createCollection(
           (() => {
-            const sitesCollection = dc.getCollectionById(args.registerPagesId);
+            const sitesCollection = store.getCollectionById(
+              args.registerPagesId
+            );
             assert(
               sitesCollection.meta.type === REGISTER_PAGES_COLLECTION_TYPE
             );
@@ -80,21 +82,21 @@ export default async function cmdAnalyze(
           currentTime().toString(),
           { type: PSM_ANALYSIS_COLLECTION_TYPE }
         )
-      : dc.getCollectionById(args.outputId);
+      : store.getCollectionById(args.outputId);
   assert(outputCollection.meta.type === PSM_ANALYSIS_COLLECTION_TYPE);
   const registerPagesCollectionId = outputCollection.parentId!;
 
   const chunksCollection =
-    dc.findCollectionByName(outputCollection.id, CHUNKS_COLLECTION_NAME) ??
-    dc.createCollection(outputCollection.id, CHUNKS_COLLECTION_NAME);
+    store.findCollectionByName(outputCollection.id, CHUNKS_COLLECTION_NAME) ??
+    store.createCollection(outputCollection.id, CHUNKS_COLLECTION_NAME);
 
   const tbdRegisterPageEntries = _.differenceWith(
     // all register pages
     (() => {
-      const registerPages = dc
+      const registerPages = store
         .getDocumentsByCollection(registerPagesCollectionId)
         .flatMap((document): RegisterPageEntry[] => {
-          const completion = dc.getDocumentData(
+          const completion = store.getDocumentData(
             document.id
           ) as Completion<SearchRegisterPageResult>;
           if (isFailure(completion)) return [];
@@ -112,7 +114,7 @@ export default async function cmdAnalyze(
       return _.uniqBy(registerPages, (x) => x.key);
     })(),
     // processed register pages
-    dc
+    store
       .getDocumentsByCollection(outputCollection.id)
       .map((document) => document.name),
     (x, y) => x.key === y
@@ -130,19 +132,19 @@ export default async function cmdAnalyze(
       const result = await runAnalyze(registerPageEntry, {
         chunkManager: {
           async get(key) {
-            const document = dc.findDocumentByName(chunksCollection.id, key);
+            const document = store.findDocumentByName(chunksCollection.id, key);
             if (!document) return;
-            return dc.getDocumentData(document.id);
+            return store.getDocumentData(document.id);
           },
           async set(key, value) {
-            dc.createDocument(chunksCollection.id, key, value);
+            store.createDocument(chunksCollection.id, key, value);
           },
         },
         maxInstrumentWorkers: args.maxInstrumentWorkers,
         headlessBrowser: !args.noHeadlessBrowser,
       });
       console.log(`end analysis ${registerPageKey} [${queueIndex}]`);
-      dc.createDocument(outputCollection.id, registerPageKey, result);
+      store.createDocument(outputCollection.id, registerPageKey, result);
     }
   );
 
@@ -247,10 +249,9 @@ export async function runAnalyze(
       }
 
       let analysisChunkKeys: string[] = [];
-      for (const [bucket, i] of buckets(
-        getDatasetPasswords(),
-        BUCKET_SIZE
-      ).map((x, i): [typeof x, number] => [x, i])) {
+      for (const [bucket, i] of buckets(getDatasetPasswords(), BUCKET_SIZE).map(
+        (x, i): [typeof x, number] => [x, i]
+      )) {
         const analysisChunkKey = getChunkKey(`analysis${i}`);
         analysisChunkKeys = [...analysisChunkKeys, analysisChunkKey];
         const analysisCompletion = await toCompletion(() =>

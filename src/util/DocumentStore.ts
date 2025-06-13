@@ -23,13 +23,13 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 `;
 
-export default class DoCoLite {
+export default class DocumentStore {
   constructor(readonly db: Database) {}
 
-  static open(dbFilepath?: string): DoCoLite {
+  static open(dbFilepath?: string): DocumentStore {
     const db = new DB(dbFilepath);
     db.exec(SCHEMA);
-    return new DoCoLite(db);
+    return new DocumentStore(db);
   }
 
   createCollection(

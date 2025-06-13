@@ -1,6 +1,7 @@
 import _ from "lodash";
 import assert from "assert";
 import ConfusionMatrix from "../util/ConfusionMatrix";
+import openDocumentStore from "../core/openDocumentStore";
 import toSimplifiedURL from "../util/toSimplifiedURL";
 import { Completion, isFailure } from "../util/Completion";
 import { getDatasetEntries } from "../data/passwords";
@@ -8,7 +9,6 @@ import { getPSMAccuracy, PSMAccuracyScoreEntry } from "../core/psm/PSMAccuracy";
 import { getScoreTable } from "../core/psm/ScoreTable";
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { isSameSite } from "../util/site";
-import { openDoCo } from "../core/DoCo";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
@@ -51,19 +51,19 @@ export default function cmdMeasure(args: {
   psmAnalysisId: number;
   dbFilepath: string | undefined;
 }) {
-  const dc = openDoCo(args.dbFilepath);
+  const store = openDocumentStore(args.dbFilepath);
 
-  const psmAnalysisCollection = dc.getCollectionById(args.psmAnalysisId);
+  const psmAnalysisCollection = store.getCollectionById(args.psmAnalysisId);
   assert(psmAnalysisCollection, PSM_ANALYSIS_COLLECTION_TYPE);
-  const chunksCollection = dc.getCollectionByName(
+  const chunksCollection = store.getCollectionByName(
     psmAnalysisCollection.id,
     CHUNKS_COLLECTION_NAME
   );
-  const registrationPagesCollection = dc.getCollectionById(
+  const registrationPagesCollection = store.getCollectionById(
     psmAnalysisCollection.parentId!
   );
-  const sitesArray = dc.getDocumentData(
-    dc.getCollectionById(registrationPagesCollection.parentId!).id
+  const sitesArray = store.getDocumentData(
+    store.getCollectionById(registrationPagesCollection.parentId!).id
   ) as string[];
 
   // Register Pages
@@ -71,15 +71,16 @@ export default function cmdMeasure(args: {
   let accessedSitesCount = 0;
   const registerPageSitesMap = new Map<string, SiteDetail[]>();
 
-  for (const { id: documentId, name: siteName } of dc.getDocumentsByCollection(
-    registrationPagesCollection.id
-  )) {
+  for (const {
+    id: documentId,
+    name: siteName,
+  } of store.getDocumentsByCollection(registrationPagesCollection.id)) {
     const site: SiteDetail = {
       name: siteName,
       rank: sitesArray.indexOf(siteName),
     };
 
-    const completion = dc.getDocumentData(
+    const completion = store.getDocumentData(
       documentId
     ) as Completion<SearchRegisterPageResult>;
 
@@ -127,8 +128,8 @@ export default function cmdMeasure(args: {
   for (const {
     id: documentId,
     name: registerPageKey,
-  } of dc.getDocumentsByCollection(psmAnalysisCollection.id)) {
-    const psmAnalysisResult = dc.getDocumentData(
+  } of store.getDocumentsByCollection(psmAnalysisCollection.id)) {
+    const psmAnalysisResult = store.getDocumentData(
       documentId
     ) as PSMAnalysisResult;
 
@@ -144,9 +145,11 @@ export default function cmdMeasure(args: {
     if (isFailure(detectCompletion)) continue;
     successfulDetectRegisterPagesCount += 1;
 
-    const detectIpfResult = dc.getDocumentData(
-      dc.getDocumentByName(chunksCollection.id, detectCompletion.value.chunkKey)
-        .id
+    const detectIpfResult = store.getDocumentData(
+      store.getDocumentByName(
+        chunksCollection.id,
+        detectCompletion.value.chunkKey
+      ).id
     ) as InputPasswordFieldResult;
     const detectAbstractResult =
       getIPFAbstractResultFromIPFResult(detectIpfResult);
@@ -210,8 +213,8 @@ export default function cmdMeasure(args: {
 
     const analysisIpfResult = analysisCompletion.value.chunkKeys.flatMap(
       (chunkKey) =>
-        dc.getDocumentData(
-          dc.getDocumentByName(chunksCollection.id, chunkKey).id
+        store.getDocumentData(
+          store.getDocumentByName(chunksCollection.id, chunkKey).id
         ) as InputPasswordFieldResult
     );
     const analysisAbstractResult =
