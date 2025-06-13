@@ -1,11 +1,11 @@
 import _ from "lodash";
 import assert from "assert";
 import currentTime from "../util/currentTime";
-import processTaskQueue from "../util/processTaskQueue";
 import searchRegisterPage from "../core/searchRegisterPage";
 import useBrowser from "../util/useBrowser";
 import { bomb } from "../util/timeout";
 import { openDoCo } from "../core/DoCo";
+import { processTaskQueue } from "../util/TaskQueue";
 import { SITES_COLLECTION_TYPE, SITES_DOCUMENT_NAME } from "./cmdLoadSiteList";
 import { toCompletion } from "../util/Completion";
 

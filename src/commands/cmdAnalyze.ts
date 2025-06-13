@@ -3,7 +3,6 @@ import assert from "assert";
 import buckets from "../util/buckets";
 import currentTime from "../util/currentTime";
 import installAnalysis from "../core/installAnalysis";
-import processTaskQueue from "../util/processTaskQueue";
 import toSimplifiedURL from "../util/toSimplifiedURL";
 import useBrowser from "../util/useBrowser";
 import useWorker from "../core/worker";
@@ -13,6 +12,7 @@ import { getIPFAbstractResultFromIPFResult } from "../core/psm/InputPasswordFiel
 import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { mayDetectPSM } from "../core/psm/mayDetectPSM";
 import { openDoCo } from "../core/DoCo";
+import { processTaskQueue } from "../util/TaskQueue";
 import { REGISTER_PAGES_COLLECTION_TYPE } from "./cmdSearchRegisterPage";
 import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import {

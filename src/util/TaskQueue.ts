@@ -1,10 +1,10 @@
-import * as async from "async";
+import { queue, QueueObject } from "async";
 
 export type Task = () => Promise<void>;
 
-export type TaskQueue = async.QueueObject<Task>;
+export type TaskQueue = QueueObject<Task>;
 
-export default async function useTaskQueue<T>(
+export async function useTaskQueue<T>(
   options:
     | {
         maxTasks?: number;
@@ -12,7 +12,7 @@ export default async function useTaskQueue<T>(
     | undefined,
   use: (taskQueue: TaskQueue) => Promise<T>
 ): Promise<T> {
-  const taskQueue = async.queue<Task, unknown>(async (task, callback) => {
+  const taskQueue = queue<Task, unknown>(async (task, callback) => {
     try {
       await task();
       callback();
@@ -25,4 +25,14 @@ export default async function useTaskQueue<T>(
   } finally {
     taskQueue.kill();
   }
+}
+export function processTaskQueue<T>(
+  inputs: T[],
+  taskQueueOptions: Parameters<typeof useTaskQueue>[0],
+  taskFactory: (input: T, queueIndex: number) => Task
+): Promise<void> {
+  return useTaskQueue(taskQueueOptions, async (taskQueue) => {
+    taskQueue.push(inputs.map(taskFactory));
+    await taskQueue.drain();
+  });
 }
