@@ -84,8 +84,15 @@ export default function cmdMeasure(args: {
       documentId
     ) as Completion<SearchRegisterPageResult>;
 
+    // count if completion status is success or the failure error is not a network error
+    if (
+      !isFailure(completion) ||
+      !completion.error?.message.includes("Error: page.goto: net::ERR_")
+    ) {
+      accessedSitesCount += 1;
+    }
+
     if (isFailure(completion)) continue;
-    accessedSitesCount += 1;
 
     const {
       value: { registerPageUrl },
