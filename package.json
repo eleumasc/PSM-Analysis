@@ -2,7 +2,7 @@
   "name": "psm-analysis",
   "version": "1.0.0",
   "scripts": {
-    "init": "npx playwright install-deps && npx playwright install --no-shell",
+    "init": "npx playwright install-deps && npx playwright install --no-shell && unzip misc/I-Dont-Care-About-Cookies.zip",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node src/index",
     "build": "tsc",
