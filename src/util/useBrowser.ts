@@ -1,7 +1,10 @@
+import path from "path";
 import pluginStealth from "puppeteer-extra-plugin-stealth";
 import { BrowserContext } from "playwright";
 import { chromium } from "playwright-extra";
-import { idcacDir } from "../idcacDir";
+import { rootDir } from "../rootDir";
+
+const ANTI_COOKIE_PATH = path.join(rootDir, "I-Dont-Care-About-Cookies");
 
 let pluginsRegistered = false;
 
@@ -18,8 +21,8 @@ export default async function useBrowser<T>(
     channel: "chromium",
     headless: options.headless ?? true,
     args: [
-      `--disable-extensions-except=${idcacDir}`,
-      `--load-extension=${idcacDir}`, // load extension "I Don't Care About Cookies"
+      `--disable-extensions-except=${ANTI_COOKIE_PATH}`,
+      `--load-extension=${ANTI_COOKIE_PATH}`, // load extension "I Don't Care About Cookies"
     ],
     locale: "en-GB", // request pages in English
   });
