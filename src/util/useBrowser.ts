@@ -2,7 +2,7 @@ import path from "path";
 import pluginStealth from "puppeteer-extra-plugin-stealth";
 import { BrowserContext } from "playwright";
 import { chromium } from "playwright-extra";
-import { rootDir } from "../rootDir";
+import { rootDir } from "../env";
 
 const ANTI_COOKIE_PATH = path.join(rootDir, "I-Dont-Care-About-Cookies");
 
