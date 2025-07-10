@@ -1,9 +1,12 @@
 import psl from "psl";
 
-export function isSameSite(thisDomain: URL, thatDomain: URL): boolean {
+export function isSameSite(
+  thisURL: string | URL,
+  thatURL: string | URL
+): boolean {
   return (
-    getSiteByDomain(thisDomain.hostname) ===
-    getSiteByDomain(thatDomain.hostname)
+    getSiteByDomain(new URL(thisURL).hostname) ===
+    getSiteByDomain(new URL(thatURL).hostname)
   );
 }
 
