@@ -22,7 +22,7 @@ import {
   toCompletion,
 } from "../util/Completion";
 import {
-  getMonotoneTestPasswords,
+  getLegacyMonotoneTestPasswords,
   getDatasetPasswords,
   TEST_PASSWORD,
 } from "../data/passwords";
@@ -228,7 +228,7 @@ export async function runAnalyze(
       const detectCompletion = await toCompletion(() =>
         runIpf(
           detectChunkKey,
-          [...getMonotoneTestPasswords(), TEST_PASSWORD],
+          getLegacyMonotoneTestPasswords().concat([TEST_PASSWORD]),
           ipfHint
         )
       );

@@ -11,14 +11,6 @@ export const TEST_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
  */
 export const MONOTONE_TEST_PASSWORDS_SEQUENCES: string[][] = [
   [
-    "a!1A",
-    "aaa!1A",
-    "aaaaa!1A",
-    "aaaaaaa!1A",
-    "aaaaaaaaa!1A",
-    "aaaaaaaaaaaaa!1A",
-  ],
-  [
     "vshb",
     "vshbnc",
     "vshbncqa",
@@ -52,8 +44,20 @@ export const MONOTONE_TEST_PASSWORDS_SEQUENCES: string[][] = [
   ],
 ];
 
-export function getMonotoneTestPasswords(): string[] {
-  return MONOTONE_TEST_PASSWORDS_SEQUENCES.flat();
+export const LEGACY_MONOTONE_TEST_PASSWORDS_SEQUENCES: string[][] = [
+  [
+    "a!1A",
+    "aaa!1A",
+    "aaaaa!1A",
+    "aaaaaaa!1A",
+    "aaaaaaaaa!1A",
+    "aaaaaaaaaaaaa!1A",
+  ],
+  ...MONOTONE_TEST_PASSWORDS_SEQUENCES,
+];
+
+export function getLegacyMonotoneTestPasswords(): string[] {
+  return LEGACY_MONOTONE_TEST_PASSWORDS_SEQUENCES.flat();
 }
 
 export type DatasetEntry = [string, number];
