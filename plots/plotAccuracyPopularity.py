@@ -42,7 +42,7 @@ for i in range(num_buckets + 1):
 for x in np.linspace(-1.0, 1.0, 21):
     plt.axvline(x=x, color="white", linewidth=0.5, alpha=0.3)
 
-plt.colorbar(label="Registration Pages")
+plt.colorbar(label="Number of Registration Pages")
 plt.xticks(ticks=np.linspace(-1.0, 1.0, 11))
 plt.yticks(ticks=[i * bucket_size for i in range(0, num_buckets + 1)])
 plt.xlabel("Accuracy")
