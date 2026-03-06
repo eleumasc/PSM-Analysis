@@ -216,7 +216,7 @@ export default function cmdMeasure(args: {
 
     assert(analysisCompletion);
     if (isFailure(analysisCompletion)) continue;
-    successfulAnalysisRegisterPagesCount += 1;
+    successfulAnalysisRegisterPagesCount += 1; // WARNING! This is not equal to number of register pages in psmClusters
 
     const analysisIpfResult = analysisCompletion.value.chunkKeys.flatMap(
       (chunkKey) =>
@@ -254,10 +254,24 @@ export default function cmdMeasure(args: {
     );
     if (!maxAccuracyPsfDetail) continue;
 
+    const isZxcvbn = (() => {
+      const {
+        scoreType: { propertyName },
+        scores,
+      } = maxAccuracyPsfDetail;
+      return (
+        propertyName === "guesses" ||
+        propertyName === "guesses_log10" ||
+        (propertyName === "score" &&
+          scores.every((s) => !Number.isFinite(s) || (s >= 0 && s <= 4)))
+      );
+    })();
+
     const psmRegisterPage = <PSMRegisterPage>{
       registerPageKey,
       sites: registerPageSitesMap.get(registerPageKey),
       maxAccuracyPsfDetail,
+      isZxcvbn,
     };
     psmRegisterPages.push(psmRegisterPage);
   }
