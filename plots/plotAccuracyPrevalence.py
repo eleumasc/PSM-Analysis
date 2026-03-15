@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 points = [
     (
-        cluster[0]["maxAccuracyPsfDetail"]["accuracy"],
+        cluster[0]["maxPsfDetail"]["accuracy"],
         len(cluster),
     )
     for cluster in data["psmClusters"]

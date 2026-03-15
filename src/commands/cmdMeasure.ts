@@ -26,6 +26,7 @@ import {
   AbstractCallType,
   getIPFAbstractResultFromIPFResult,
 } from "../core/psm/InputPasswordFieldAbstractResult";
+import { createHash } from "crypto";
 
 type SiteDetail = {
   name: string;
@@ -38,11 +39,15 @@ type RegisterPage = {
 };
 
 type PSMRegisterPage = RegisterPage & {
-  maxAccuracyPsfDetail: PSFDetail;
+  maxPsfDetail: PSFDetail;
+  totalPSFs: number;
+  maxPSFAccuracyMaxDelta: number;
+  isZxcvbn: boolean;
 };
 
 type PSFDetail = {
   scoreType: AbstractCallType;
+  signature: string;
   scores: number[];
   accuracy: number;
 };
@@ -131,6 +136,7 @@ export default function cmdMeasure(args: {
     serverSideCrossSite: 0,
     serverSideNonSecure: 0,
   };
+  let truthCandidates: string[] = [];
 
   for (const {
     id: documentId,
@@ -161,6 +167,8 @@ export default function cmdMeasure(args: {
     const detectAbstractResult =
       getIPFAbstractResultFromIPFResult(detectIpfResult);
     const psmDetected = detectPSM(detectAbstractResult);
+
+    truthCandidates.push(registerPageKey);
 
     if (TRUTH.has(registerPageKey)) {
       const truth = TRUTH.get(registerPageKey)!;
@@ -228,37 +236,44 @@ export default function cmdMeasure(args: {
       getIPFAbstractResultFromIPFResult(analysisIpfResult);
     const scoreTable = getScoreTable(analysisAbstractResult, scoreTypes);
 
-    const psfDetails = _.map(scoreTypes, (scoreType): PSFDetail => {
-      const scoreTypeIndex = scoreTypes.indexOf(scoreType);
-      assert(scoreTypeIndex !== -1);
-      const scoreEntries = _.map(
-        getDatasetEntries(),
-        ([password, frequency], rankIndex): PSMAccuracyScoreEntry => {
-          const scoreTableRow = scoreTable.find(
-            ({ password: passwordSearched }) => passwordSearched === password
-          );
-          assert(scoreTableRow);
-          const evaluatedScore =
-            scoreTableRow.scores[scoreTypeIndex] ?? -Infinity;
-          return { frequency, referenceScore: rankIndex + 1, evaluatedScore };
-        }
-      );
-      const scores = _.map(scoreEntries, (e) => e.evaluatedScore);
-      const accuracy = getPSMAccuracy(scoreEntries);
-      return { scoreType, scores, accuracy };
-    });
-
-    const maxAccuracyPsfDetail = _.maxBy(
-      psfDetails,
-      ({ accuracy }) => accuracy
+    const psfDetails = _.uniqBy(
+      scoreTypes.map((scoreType): PSFDetail => {
+        const scoreTypeIndex = scoreTypes.indexOf(scoreType);
+        assert(scoreTypeIndex !== -1);
+        const scoreEntries = _.map(
+          getDatasetEntries(),
+          ([password, frequency], rankIndex): PSMAccuracyScoreEntry => {
+            const scoreTableRow = scoreTable.find(
+              ({ password: passwordSearched }) => passwordSearched === password
+            );
+            assert(scoreTableRow);
+            const evaluatedScore =
+              scoreTableRow.scores[scoreTypeIndex] ?? -Infinity;
+            return { frequency, referenceScore: rankIndex + 1, evaluatedScore };
+          }
+        );
+        const scores = _.map(scoreEntries, (e) => e.evaluatedScore);
+        const accuracy = getPSMAccuracy(scoreEntries);
+        return {
+          scoreType,
+          signature: createHash("md5")
+            .update(JSON.stringify(scores))
+            .digest("hex"),
+          scores,
+          accuracy: !isNaN(accuracy) ? accuracy : 0, // 0 means "no correlation"
+        };
+      }),
+      ({ signature }) => signature
     );
-    if (!maxAccuracyPsfDetail) continue;
+
+    const maxPsfDetail = _.maxBy(psfDetails, ({ accuracy }) => accuracy);
+    assert(maxPsfDetail);
 
     const isZxcvbn = (() => {
       const {
         scoreType: { propertyName },
         scores,
-      } = maxAccuracyPsfDetail;
+      } = maxPsfDetail;
       return (
         propertyName === "guesses" ||
         propertyName === "guesses_log10" ||
@@ -270,20 +285,24 @@ export default function cmdMeasure(args: {
     const psmRegisterPage = <PSMRegisterPage>{
       registerPageKey,
       sites: registerPageSitesMap.get(registerPageKey),
-      maxAccuracyPsfDetail,
+      maxPsfDetail,
+      totalPSFs: psfDetails.length,
+      maxPSFAccuracyMaxDelta: _.max(
+        psfDetails.map(({ accuracy }) =>
+          Math.abs(maxPsfDetail.accuracy - accuracy)
+        )
+      ),
       isZxcvbn,
     };
     psmRegisterPages.push(psmRegisterPage);
   }
 
   const psmClusters = _.values(
-    _.groupBy(psmRegisterPages, ({ maxAccuracyPsfDetail: { scores } }) =>
-      JSON.stringify(scores)
-    )
+    _.groupBy(psmRegisterPages, ({ maxPsfDetail: { signature } }) => signature)
   );
 
   // console.log(
-  //  "missing register pages for validation of analysis pipeline",
+  //   "missing register pages for validation of analysis pipeline",
   //   _.difference(
   //     [...TRUTH.keys()],
   //     Object.values(psmConfusionMatrix.get()).flat()
@@ -302,6 +321,11 @@ export default function cmdMeasure(args: {
     psmDetectedRegisterPagesDetail,
   };
   writeFileSync("report.json", JSON.stringify(report));
+
+  truthCandidates = _.sortBy(truthCandidates, (candidate) =>
+    _.min(registerPageSitesMap.get(candidate)!.map((s) => s.rank))
+  );
+  console.log(truthCandidates.slice(0, 100), truthCandidates.slice(-50));
 
   process.exit(0);
 }
