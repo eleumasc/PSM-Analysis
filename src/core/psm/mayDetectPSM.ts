@@ -1,14 +1,14 @@
 import _ from "lodash";
-import { InputPasswordFieldHint } from "../inputPasswordField";
+import { QPFHint } from "../queryPasswordField";
 import {
   CapturePhase,
-  InputPasswordFieldAbstractResult,
-} from "./InputPasswordFieldAbstractResult";
+  QPFAbstractResultArray,
+} from "./QPFAbstractResult";
 
 export function mayDetectPSM(
-  ipfAbstractResult: InputPasswordFieldAbstractResult
-): InputPasswordFieldHint | null {
-  const abstractTraces = ipfAbstractResult.flatMap(
+  qpfAbstractResults: QPFAbstractResultArray
+): QPFHint | null {
+  const abstractTraces = qpfAbstractResults.flatMap(
     ({ abstractTraces }) => abstractTraces
   );
 

@@ -1,21 +1,16 @@
 import _ from "lodash";
 import combinations from "../../util/combinations";
 import { isAscending, isConstant, isDescending } from "../../util/sorting";
-import { MONOTONE_TEST_PASSWORDS_SEQUENCES } from "../../data/passwords";
+import { getMonotoneTestPasswordSequences } from "../../data/passwords";
+import { reDigit, reLower, reSpecial, reUpper } from "../../util/regexps";
 import {
-  reDigit,
-  reLower,
-  reSpecial,
-  reUpper
-  } from "../../data/regexps";
-import {
-  getScoreCandidatesFromIPFAbstractResult,
+  getScoreCandidatesFromQPFAbstractResults as getScoreCandidatesFromQPFAbstractResults,
   ScoreCandidate,
 } from "./ScoreCandidate";
 import {
   AbstractCallType,
-  InputPasswordFieldAbstractResult,
-} from "./InputPasswordFieldAbstractResult";
+  QPFAbstractResultArray,
+} from "./QPFAbstractResult";
 
 export type PSMDetail = {
   scoreTypes: AbstractCallType[];
@@ -41,7 +36,7 @@ const isCharacterCountCandidate = ({ occurrences }: ScoreCandidate) =>
     );
 
 const isMonotoneCandidate = ({ occurrences }: ScoreCandidate) =>
-  MONOTONE_TEST_PASSWORDS_SEQUENCES.every((group) => {
+  getMonotoneTestPasswordSequences().every((group) => {
     const values = group
       .flatMap((password) => {
         const found = occurrences.find((occ) => occ.password === password);
@@ -52,10 +47,10 @@ const isMonotoneCandidate = ({ occurrences }: ScoreCandidate) =>
   });
 
 export function detectPSM(
-  ipfAbstractResult: InputPasswordFieldAbstractResult
+  qpfAbstractResults: QPFAbstractResultArray
 ): PSMDetail | null {
   const scoreCandidates =
-    getScoreCandidatesFromIPFAbstractResult(ipfAbstractResult);
+    getScoreCandidatesFromQPFAbstractResults(qpfAbstractResults);
 
   const scoreTypes = scoreCandidates
     .filter(
@@ -71,10 +66,10 @@ export function detectPSM(
 }
 
 export function getScoreCandidateFilteringDetail(
-  ipfAbstractResult: InputPasswordFieldAbstractResult
+  qpfAbstractResults: QPFAbstractResultArray
 ): ScoreCandidateFilteringDetail {
   const scoreCandidates =
-    getScoreCandidatesFromIPFAbstractResult(ipfAbstractResult);
+    getScoreCandidatesFromQPFAbstractResults(qpfAbstractResults);
 
   const allCandidatesCount = scoreCandidates.length;
 

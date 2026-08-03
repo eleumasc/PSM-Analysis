@@ -3,8 +3,6 @@ build/
 *.sqlite
 *.sqlite-journal
 *.out
-/.env
 /data/
 /temp/
 __pycache__
-pwddataset.json

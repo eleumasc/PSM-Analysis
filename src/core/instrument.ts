@@ -55,7 +55,11 @@ export default async function instrument(
                       node.declarations
                         .filter((decl) => decl.init)
                         .map((decl) =>
-                          t.assignmentExpression("=", decl.id, decl.init!)
+                          t.assignmentExpression(
+                            "=",
+                            decl.id as babel.types.LVal,
+                            decl.init!
+                          )
                         )
                     )
                   );
@@ -71,7 +75,11 @@ export default async function instrument(
                       node.declarations
                         .filter((decl) => decl.init)
                         .map((decl) =>
-                          t.assignmentExpression("=", decl.id, decl.init!)
+                          t.assignmentExpression(
+                            "=",
+                            decl.id as babel.types.LVal,
+                            decl.init!
+                          )
                         )
                     )
                   )
@@ -195,9 +203,11 @@ export default async function instrument(
           if (t.isVariableDeclaration(left)) {
             assert(left.declarations.length === 1);
             const [declaration] = left.declarations;
-            declaration.id = t.arrayPattern([declaration.id]);
+            declaration.id = t.arrayPattern([
+              declaration.id as babel.types.PatternLike,
+            ]);
           } else {
-            node.left = t.arrayPattern([left]);
+            node.left = t.arrayPattern([left as babel.types.PatternLike]);
           }
           node.right = adviceCall("forAwaitOf", [right]);
         },

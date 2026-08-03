@@ -1,272 +1,317 @@
 import _ from "lodash";
-import assert from "assert";
 import buckets from "../util/buckets";
 import currentTime from "../util/currentTime";
 import installAnalysis from "../core/installAnalysis";
-import openDocumentStore from "../core/openDocumentStore";
-import toSimplifiedURL from "../util/toSimplifiedURL";
 import useBrowser from "../util/useBrowser";
-import useWorker from "../core/worker";
 import { bomb } from "../util/timeout";
 import { detectPSM } from "../core/psm/detectPSM";
-import { getIPFAbstractResultFromIPFResult } from "../core/psm/InputPasswordFieldAbstractResult";
-import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
+import { getQPFAbstractResultsFromQPFResults } from "../core/psm/QPFAbstractResult";
+import { QPFResultArray } from "../core/QPFResult";
 import { mayDetectPSM } from "../core/psm/mayDetectPSM";
 import { processTaskQueue } from "../util/TaskQueue";
-import { REGISTER_PAGES_COLLECTION_TYPE } from "./cmdSearchRegisterPage";
-import { SearchRegisterPageResult } from "../core/searchRegisterPage";
+import { isSuccess, Success, toCompletion } from "../util/Completion";
 import {
-  Completion,
-  isFailure,
-  Success,
-  toCompletion,
-} from "../util/Completion";
-import {
-  getLegacyMonotoneTestPasswords,
   getDatasetPasswords,
-  TEST_PASSWORD,
+  getMonotoneTestPasswords,
+  getTestPassword,
 } from "../data/passwords";
-import inputPasswordField, {
-  InputPasswordFieldHint,
-} from "../core/inputPasswordField";
+import queryPasswordField, { QPFHint } from "../core/queryPasswordField";
+import { extractDataPath, makeDataPath } from "../data/path";
+import { mkdirSync } from "fs";
+import DataArchive from "../data/DataArchive";
+import { readSiteList } from "../data/readSiteList";
+import { enumerate, toArray } from "iter-tools";
+import searchRegisterPage, {
+  SearchRegisterPageResult,
+} from "../core/searchRegisterPage";
+import { RegisterPage } from "../models/RegisterPage";
+import { makeTaskFromFunction } from "../worker/Task";
+import path from "path";
+import execContainer from "../worker/execContainer";
+import assert from "assert";
+import { Site } from "../models/Site";
+import { encodeUrlAsFilenameHash } from "../util/encodeAsFilename";
+import { RegisterPageDetectionResult } from "../core/RegisterPageDetectionResult";
+import { PSMAnalysisResult } from "../core/PSMAnalysisResult";
+import zigzag from "../util/zigzag";
 
-export type PSMAnalysisResult = {
-  testCompletion?: Completion<{ chunkKey: string }>;
-  detectCompletion?: Completion<{ chunkKey: string }>;
-  analysisCompletion?: Completion<{ chunkKeys: string[] }>;
-};
+const RUN_SRP_TIMEOUT_MS: number = 5 * 60 * 1000; // 5 minutes
 
-type RegisterPageEntry = {
-  key: string;
-  url: string;
-};
+const RUN_QPF_TIMEOUT_MS: number = 10 * 60 * 1000; // 10 minutes
 
-export const PSM_ANALYSIS_COLLECTION_TYPE = "psm_analysis";
-
-export const CHUNKS_COLLECTION_NAME = "chunks";
-
-const RUN_IPF_TIMEOUT_MS: number = 10 * 60 * 1000; // 10 minutes
-
-const BUCKET_SIZE: number = 50;
+const RUN_QPF_ANALYSIS_BUCKET_SIZE: number = 50;
 
 export default async function cmdAnalyze(
   args: (
     | {
         action: "create";
-        registerPagesId: number;
+        siteListPath: string;
       }
     | {
         action: "resume";
-        outputId: number;
+        analyzeOutDir: string;
       }
   ) & {
     maxTasks: number;
-    maxInstrumentWorkers: number;
-    noHeadlessBrowser: boolean;
+    rpdOnly: boolean;
   }
 ) {
-  const store = openDocumentStore();
+  const { dataName, dataArchive } = (() => {
+    if (args.action === "create") {
+      const { siteListPath } = args;
+      const siteListDataName = extractDataPath(siteListPath);
+      const dataName = `${currentTime()}-Analyze`;
+      mkdirSync(makeDataPath(dataName), { recursive: true });
+      const dataArchive = DataArchive.open(
+        makeDataPath(dataName, "data.sqlite")
+      );
+      dataArchive.addSites(readSiteList(makeDataPath(siteListDataName)));
+      return { dataName, dataArchive };
+    } else {
+      const { analyzeOutDir } = args;
+      const dataName = extractDataPath(analyzeOutDir);
+      const dataArchive = DataArchive.open(
+        makeDataPath(dataName, "data.sqlite")
+      );
+      return { dataName, dataArchive };
+    }
+  })();
 
-  const outputCollection =
-    args.action === "create"
-      ? store.createCollection(
-          (() => {
-            const sitesCollection = store.getCollectionById(
-              args.registerPagesId
-            );
-            assert(
-              sitesCollection.meta.type === REGISTER_PAGES_COLLECTION_TYPE
-            );
-            return sitesCollection.id;
-          })(),
-          currentTime().toString(),
-          { type: PSM_ANALYSIS_COLLECTION_TYPE }
-        )
-      : store.getCollectionById(args.outputId);
-  assert(outputCollection.meta.type === PSM_ANALYSIS_COLLECTION_TYPE);
-  const registerPagesCollectionId = outputCollection.parentId!;
+  console.log(`Name: ${dataName}`);
 
-  const chunksCollection =
-    store.findCollectionByName(outputCollection.id, CHUNKS_COLLECTION_NAME) ??
-    store.createCollection(outputCollection.id, CHUNKS_COLLECTION_NAME);
+  const abortController = new AbortController();
+  process.addListener("SIGINT", () => {
+    abortController.abort();
+  });
+  const abortSignal = abortController.signal;
 
-  const tbdRegisterPageEntries = _.differenceWith(
-    // all register pages
-    (() => {
-      const registerPages = store
-        .getDocumentsByCollection(registerPagesCollectionId)
-        .flatMap((document): RegisterPageEntry[] => {
-          const completion = store.getDocumentData(
-            document.id
-          ) as Completion<SearchRegisterPageResult>;
-          if (isFailure(completion)) return [];
-          const {
-            value: { registerPageUrl },
-          } = completion;
-          if (registerPageUrl === null) return [];
-          return [
-            {
-              key: toSimplifiedURL(registerPageUrl).toString(),
-              url: registerPageUrl,
-            },
-          ];
-        });
-      return _.uniqBy(registerPages, (x) => x.key);
-    })(),
-    // processed register pages
-    store
-      .getDocumentsByCollection(outputCollection.id)
-      .map((document) => document.name),
-    (x, y) => x.key === y
+  const pendingSites = toArray(
+    dataArchive.getPendingSitesForRegisterPageDetection()
+  );
+  console.log(
+    `Register Page Detection: ${pendingSites.length} sites remaining`
+  );
+  await processTaskQueue(
+    pendingSites,
+    {
+      maxTasks: args.maxTasks,
+      abortSignal,
+    },
+    (site, queueIndex) => async () => {
+      const { name: siteName } = site;
+      console.log(`begin ${siteName} [${queueIndex}]`);
+      try {
+        const result = await phaseRegisterPageDetection(site, dataName);
+        dataArchive.completeRegisterPageDetection(site.id!, result);
+      } catch (e) {
+        console.log(`error ${e}`);
+      } finally {
+        console.log(`end ${siteName} [${queueIndex}]`);
+      }
+    }
   );
 
-  console.log(`Output ID: ${outputCollection.id}`);
-  console.log(`${tbdRegisterPageEntries.length} register pages remaining`);
+  if (abortSignal.aborted || args.rpdOnly) {
+    process.exit(0);
+  }
 
+  const pendingRegisterPages = toArray(
+    dataArchive.getPendingRegisterPagesForPSMAnalysis()
+  );
+  console.log(
+    `PSM Analysis: ${pendingRegisterPages.length} register pages remaining`
+  );
   await processTaskQueue(
-    tbdRegisterPageEntries,
-    { maxTasks: args.maxTasks },
-    (registerPageEntry, queueIndex) => async () => {
-      const { key: registerPageKey } = registerPageEntry;
-      console.log(`begin analysis ${registerPageKey} [${queueIndex}]`);
-      const result = await runAnalyze(registerPageEntry, {
-        chunkManager: {
-          async get(key) {
-            const document = store.findDocumentByName(chunksCollection.id, key);
-            if (!document) return;
-            return store.getDocumentData(document.id);
-          },
-          async set(key, value) {
-            store.createDocument(chunksCollection.id, key, value);
-          },
-        },
-        maxInstrumentWorkers: args.maxInstrumentWorkers,
-        headlessBrowser: !args.noHeadlessBrowser,
-      });
-      console.log(`end analysis ${registerPageKey} [${queueIndex}]`);
-      store.createDocument(outputCollection.id, registerPageKey, result);
+    pendingRegisterPages,
+    {
+      maxTasks: args.maxTasks,
+      abortSignal,
+    },
+    (registerPage, queueIndex) => async () => {
+      const { url: rpUrl } = registerPage;
+      console.log(`begin ${rpUrl} [${queueIndex}]`);
+      try {
+        const result = await phasePSMAnalysis(registerPage, dataName);
+        dataArchive.completePSMAnalysis(registerPage.id!, result);
+      } catch (e) {
+        console.log(`error ${e}`);
+      } finally {
+        console.log(`end ${rpUrl} [${queueIndex}]`);
+      }
     }
   );
 
   process.exit(0);
 }
 
-export async function runAnalyze(
-  registerPageEntry: RegisterPageEntry,
-  options: {
-    chunkManager: {
-      get: (key: string) => Promise<any | undefined>;
-      set: (key: string, value: any) => Promise<void>;
-    };
-    maxInstrumentWorkers: number;
-    headlessBrowser: boolean;
-  }
-): Promise<PSMAnalysisResult> {
-  const { url: registerPageUrl } = registerPageEntry;
+async function phaseRegisterPageDetection(
+  site: Site,
+  dataName: string
+): Promise<RegisterPageDetectionResult> {
+  const { name: siteName } = site;
+  let result: RegisterPageDetectionResult = {};
 
-  const getChunkKey = (chunkKeyPrefix: string): string =>
-    `${chunkKeyPrefix}:${registerPageEntry.key}`;
-
-  return useWorker(
-    { maxWorkers: options.maxInstrumentWorkers },
-    async (workerExec) => {
-      const runIpf = async (
-        chunkKey: string,
-        passwordList: string[],
-        hint?: InputPasswordFieldHint
-      ): Promise<InputPasswordFieldResult> => {
-        const savedIpfResult = await options.chunkManager.get(chunkKey);
-        if (savedIpfResult) {
-          console.log(`chunk saved ${chunkKey}`);
-          return savedIpfResult;
-        }
-
-        const computedIpfResult = await useBrowser(
-          { headless: options.headlessBrowser },
-          async (browser) => {
-            const page = await browser.newPage();
-            await installAnalysis(page, { workerExec });
-            return bomb(
-              () =>
-                inputPasswordField(page, {
-                  registerPageUrl,
-                  passwordList,
-                  hint,
-                }),
-              RUN_IPF_TIMEOUT_MS
-            );
-          }
-        );
-        await options.chunkManager.set(chunkKey, computedIpfResult);
-        console.log(`chunk computed ${chunkKey}`);
-        return computedIpfResult;
-      };
-
-      let result: PSMAnalysisResult = {};
-
-      const testChunkKey = getChunkKey("test");
-      const testCompletion = await toCompletion(() =>
-        runIpf(testChunkKey, [TEST_PASSWORD])
-      );
-      if (isFailure(testCompletion)) {
-        return { ...result, testCompletion };
-      }
-      result = {
-        ...result,
-        testCompletion: Success({ chunkKey: testChunkKey }),
-      };
-
-      const { value: testIpfResult } = testCompletion;
-      const ipfHint = mayDetectPSM(
-        getIPFAbstractResultFromIPFResult(testIpfResult)
-      );
-      if (!ipfHint) {
-        return result;
-      }
-
-      const detectChunkKey = getChunkKey("detect");
-      const detectCompletion = await toCompletion(() =>
-        runIpf(
-          detectChunkKey,
-          getLegacyMonotoneTestPasswords().concat([TEST_PASSWORD]),
-          ipfHint
-        )
-      );
-      if (isFailure(detectCompletion)) {
-        return { ...result, detectCompletion };
-      }
-      result = {
-        ...result,
-        detectCompletion: Success({ chunkKey: detectChunkKey }),
-      };
-
-      const { value: detectIpfResult } = detectCompletion;
-      const psmDetected = detectPSM(
-        getIPFAbstractResultFromIPFResult(detectIpfResult)
-      );
-      if (!psmDetected) {
-        return result;
-      }
-
-      let analysisChunkKeys: string[] = [];
-      for (const [bucket, i] of buckets(getDatasetPasswords(), BUCKET_SIZE).map(
-        (x, i): [typeof x, number] => [x, i]
-      )) {
-        const analysisChunkKey = getChunkKey(`analysis${i}`);
-        analysisChunkKeys = [...analysisChunkKeys, analysisChunkKey];
-        const analysisCompletion = await toCompletion(() =>
-          runIpf(analysisChunkKey, bucket, ipfHint)
-        );
-        if (isFailure(analysisCompletion)) {
-          return { ...result, analysisCompletion };
-        }
-      }
-      result = {
-        ...result,
-        analysisCompletion: Success({ chunkKeys: analysisChunkKeys }),
-      };
-
-      return result;
-    }
+  const searchCompletion = await toCompletion(() =>
+    execContainer(
+      makeTaskFromFunction(runSearchRegisterPage, [{ site: siteName }])
+    )
   );
+  result = { ...result, searchCompletion };
+
+  return result;
+}
+
+async function phasePSMAnalysis(
+  registerPage: RegisterPage,
+  dataName: string
+): Promise<PSMAnalysisResult> {
+  const { url: rpUrl } = registerPage;
+  const harFile = path.join(
+    dataName,
+    encodeUrlAsFilenameHash(registerPage.url) + ".har.zip"
+  );
+  let result: PSMAnalysisResult = {};
+
+  console.log(`record ${rpUrl}`);
+  const recordCompletion = await toCompletion(() =>
+    execContainer(
+      makeTaskFromFunction(runQueryPasswordField, [
+        {
+          rpUrl,
+          passwordArray: [getTestPassword()],
+          recordHarFile: harFile,
+        },
+      ])
+    )
+  );
+  if (!isSuccess(recordCompletion)) {
+    return { ...result, recordCompletion };
+  }
+  result = {
+    ...result,
+    recordCompletion: Success({ harFile }),
+  };
+
+  console.log(`test ${rpUrl}`);
+  const testCompletion = await toCompletion(() =>
+    execContainer(
+      makeTaskFromFunction(runQueryPasswordField, [
+        {
+          rpUrl,
+          passwordArray: [getTestPassword()],
+          replayHarFile: harFile,
+        },
+      ])
+    )
+  );
+  result = { ...result, testCompletion };
+  if (!isSuccess(testCompletion)) {
+    return result;
+  }
+
+  const { value: testQPFResults } = testCompletion;
+  const qpfHint = mayDetectPSM(
+    getQPFAbstractResultsFromQPFResults(testQPFResults)
+  );
+  if (!qpfHint) {
+    return result;
+  }
+
+  console.log(`detect ${rpUrl}`);
+  const detectCompletion = await toCompletion(() =>
+    execContainer(
+      makeTaskFromFunction(runQueryPasswordField, [
+        {
+          rpUrl,
+          passwordArray: zigzag(getMonotoneTestPasswords()), // zigzag() is meant to prevent correlations between password strength and time
+          hint: qpfHint,
+          replayHarFile: harFile,
+        },
+      ])
+    )
+  );
+  result = { ...result, detectCompletion };
+  if (!isSuccess(detectCompletion)) {
+    return result;
+  }
+  result = {
+    ...result,
+    detectCompletion: Success(zigzag(detectCompletion.value)), // invert zigzag()
+  };
+
+  const { value: detectQPFResults } = detectCompletion;
+  const psmDetected = detectPSM(
+    getQPFAbstractResultsFromQPFResults(detectQPFResults)
+  );
+  if (!psmDetected) {
+    return result;
+  }
+
+  let analysisQPFResults: QPFResultArray = [];
+  for (const [seq, bucket] of enumerate(
+    buckets(getDatasetPasswords(), RUN_QPF_ANALYSIS_BUCKET_SIZE)
+  )) {
+    console.log(`analysis ${seq} ${rpUrl}`);
+    const partialAnalysisCompletion = await toCompletion(() =>
+      execContainer(
+        makeTaskFromFunction(runQueryPasswordField, [
+          {
+            rpUrl,
+            passwordArray: bucket,
+            hint: qpfHint,
+            replayHarFile: harFile,
+          },
+        ])
+      )
+    );
+    if (!isSuccess(partialAnalysisCompletion)) {
+      return { ...result, analysisCompletion: partialAnalysisCompletion };
+    }
+    const { value: partialAnalysisQPFResults } = partialAnalysisCompletion;
+    analysisQPFResults = [...analysisQPFResults, ...partialAnalysisQPFResults];
+  }
+  const analysisCompletion = Success(analysisQPFResults);
+  result = { ...result, analysisCompletion };
+
+  return result;
+}
+
+export async function runSearchRegisterPage(args: {
+  site: string;
+}): Promise<SearchRegisterPageResult> {
+  const { site } = args;
+  return useBrowser({}, async (page) =>
+    bomb(() => searchRegisterPage(page, site), RUN_SRP_TIMEOUT_MS)
+  );
+}
+
+export function runQueryPasswordField(args: {
+  rpUrl: string;
+  passwordArray: string[];
+  hint?: QPFHint;
+  recordHarFile?: string;
+  replayHarFile?: string;
+}): Promise<QPFResultArray> {
+  const { rpUrl, passwordArray, hint, recordHarFile, replayHarFile } = args;
+  assert(Boolean(recordHarFile) !== Boolean(replayHarFile));
+  let recordHarPath: string | undefined;
+  if (recordHarFile) {
+    recordHarPath = makeDataPath(recordHarFile);
+  }
+  return useBrowser({ recordHarPath }, async (page) => {
+    if (replayHarFile) {
+      const replayHarPath = makeDataPath(replayHarFile);
+      await installAnalysis(page, replayHarPath);
+    }
+    return bomb(
+      () =>
+        queryPasswordField(page, {
+          rpUrl,
+          passwordArray,
+          hint,
+          isSimulating: Boolean(recordHarFile),
+        }),
+      RUN_QPF_TIMEOUT_MS
+    );
+  });
 }

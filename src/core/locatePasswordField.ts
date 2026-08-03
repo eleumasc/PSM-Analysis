@@ -15,12 +15,12 @@ export default async function locatePasswordField(
   page: Page,
   options: {
     // site: string;
-    registerPageUrl: string;
+    rpUrl: string;
   }
 ): Promise<LocatePasswordFieldResult> {
-  const { registerPageUrl } = options;
+  const { rpUrl } = options;
 
-  await page.goto(registerPageUrl);
+  await page.goto(rpUrl);
   await timeout(NAVIGATE_EXTRA_TIMEOUT_MS);
   const formStructures = await getFormStructures(page);
   const registerForm = findRegisterForm(formStructures);
@@ -30,7 +30,7 @@ export default async function locatePasswordField(
     throw new Error("Cannot find register form");
 
     // const searchRegisterPageResult = await searchRegisterPage(page, site);
-    // if (!searchRegisterPageResult.registerPageUrl) {
+    // if (!searchRegisterPageResult.rpUrl) {
     //   throw new Error("Cannot find register page");
     // }
     // const formStructures = await getFormStructures(page);

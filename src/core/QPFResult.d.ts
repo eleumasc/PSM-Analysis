@@ -1,6 +1,6 @@
-export type InputPasswordFieldResult = InputPasswordFieldDetail[];
+export type QPFResultArray = QPFResult[];
 
-export type InputPasswordFieldDetail = {
+export type QPFResult = {
   password: string;
   fillTrace?: Trace;
   blurTrace?: Trace;

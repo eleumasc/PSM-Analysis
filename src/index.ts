@@ -1,7 +1,5 @@
 import cmdAnalyze from "./commands/cmdAnalyze";
-import cmdLoadSiteList from "./commands/cmdLoadSiteList";
 import cmdMeasure from "./commands/cmdMeasure";
-import cmdSearchRegisterPage from "./commands/cmdSearchRegisterPage";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -10,101 +8,38 @@ async function main() {
 
   yargs(hideBin(process.argv))
     .command(
-      "load-site-list <filepath>",
-      "Load a site list (Tranco) from a file",
-      (yargs) =>
-        yargs.positional("filepath", {
-          describe: "Path to the file containing the site list",
-          type: "string",
-          demandOption: true,
-        }),
-      ({ filepath }) => cmdLoadSiteList(filepath)
-    )
-
-    .command(
-      "search-register-page <sites-id>",
-      "Create a new search register page analysis",
-      (yargs) =>
-        yargs
-          .positional("sites-id", {
-            describe: "ID of the sites collection",
-            type: "number",
-            demandOption: true,
-          })
-          .option("max-tasks", {
-            type: "number",
-            default: 1,
-          })
-          .option("no-headless-browser", {
-            type: "boolean",
-            default: false,
-          }),
-      (args) => cmdSearchRegisterPage({ action: "create", ...args })
-    )
-    .command(
-      "search-register-page:resume <output-id>",
-      "Resume an existing search register page analysis",
-      (yargs) =>
-        yargs
-          .positional("output-id", {
-            describe: "ID of the analysis to resume",
-            type: "number",
-            demandOption: true,
-          })
-          .option("max-tasks", {
-            type: "number",
-            default: 1,
-          })
-          .option("no-headless-browser", {
-            type: "boolean",
-            default: false,
-          }),
-      (args) => cmdSearchRegisterPage({ action: "resume", ...args })
-    )
-
-    .command(
-      "analyze <register-pages-id>",
+      "analyze <siteListPath>",
       "Create a new PSM analysis",
       (yargs) =>
         yargs
-          .positional("register-pages-id", {
-            describe: "ID of the register pages collection",
-            type: "number",
+          .positional("siteListPath", {
+            type: "string",
             demandOption: true,
           })
-          .option("max-tasks", {
+          .option("maxTasks", {
             type: "number",
             default: 1,
           })
-          .option("max-instrument-workers", {
-            type: "number",
-            default: 1,
-          })
-          .option("no-headless-browser", {
+          .option("rpdOnly", {
             type: "boolean",
             default: false,
           }),
       (args) => cmdAnalyze({ action: "create", ...args })
     )
     .command(
-      "analyze:resume <output-id>",
+      "analyze:resume <analyzeOutDir>",
       "Resume an existing PSM analysis",
       (yargs) =>
         yargs
-          .positional("output-id", {
-            describe: "ID of the analysis to resume",
-            type: "number",
+          .positional("analyzeOutDir", {
+            type: "string",
             demandOption: true,
           })
-          .option("max-tasks", {
+          .option("maxTasks", {
             type: "number",
             default: 1,
           })
-          .option("max-instrument-workers", {
-            type: "number",
-            default: 1,
-          })
-          .option("no-headless-browser", {
+          .option("rpdOnly", {
             type: "boolean",
             default: false,
           }),
@@ -112,18 +47,13 @@ async function main() {
     )
 
     .command(
-      "measure <psm-analysis-id>",
+      "measure <analyzeOutDir>",
       "Perform data processing from a PSM analysis",
       (yargs) =>
-        yargs
-          .positional("psm-analysis-id", {
-            type: "number",
-            describe: "ID of the PSM analysis collection",
-            demandOption: true,
-          })
-          .option("db-filepath", {
-            type: "string",
-          }),
+        yargs.positional("analyzeOutDir", {
+          type: "string",
+          demandOption: true,
+        }),
       (args) => cmdMeasure(args)
     )
 

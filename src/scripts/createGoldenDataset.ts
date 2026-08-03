@@ -1,16 +1,37 @@
 import { readFileSync, writeFileSync } from "fs";
+import _ from "lodash";
 
-const filename = process.argv[2]; // path to dataset by Di Campi et al. or compatible
+const SELECTION_SIZE: number = 1000;
+
+const filename = process.argv[2];
 
 const entries = readFileSync(filename, "utf8")
-  .split("\n")
-  .filter((x) => x)
-  .map((line) => line.split(" "))
-  .map(([rawFrequency, password]) => [password, parseInt(rawFrequency)]);
+  .split(/\r?\n/)
+  .filter(Boolean)
+  .map((line) => line.trim().split(/\s+/, 2))
+  .map(([rawFrequency, password]) => [
+    password,
+    Number.parseInt(rawFrequency, 10),
+  ])
+  .slice(1); // we exclude the most frequent password, since its exceptionally high frequency made its strength estimate overly dominant in the accuracy of the evaluated PSMs
 
-const selectedEntries = entries
-  .slice(1)
-  .filter((_, i) => i % 10 === 0)
-  .slice(0, 1000);
+const frequencies = _.uniq(entries.map(([, frequency]) => frequency));
 
-writeFileSync("dataset.json", JSON.stringify(selectedEntries));
+if (frequencies.length < SELECTION_SIZE) {
+  throw new Error(
+    `Expected at least ${SELECTION_SIZE} distinct frequencies, but found ${frequencies.length}.`
+  );
+}
+
+const selectedFrequencies = _.range(SELECTION_SIZE).map((i) => {
+  const index = Math.floor(
+    (i * (frequencies.length - 1)) / (SELECTION_SIZE - 1)
+  );
+  return frequencies[index];
+});
+
+const selectedEntries = selectedFrequencies.map((frequency) =>
+  entries.find(([, f]) => f === frequency)
+);
+
+writeFileSync("pwddataset.json", JSON.stringify(selectedEntries));

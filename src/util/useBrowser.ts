@@ -1,6 +1,6 @@
 import path from "path";
 import pluginStealth from "puppeteer-extra-plugin-stealth";
-import { BrowserContext } from "playwright";
+import { Page } from "playwright";
 import { chromium } from "playwright-extra";
 import { rootDir } from "../env";
 
@@ -9,8 +9,11 @@ const ANTI_COOKIE_PATH = path.join(rootDir, "I-Dont-Care-About-Cookies");
 let pluginsRegistered = false;
 
 export default async function useBrowser<T>(
-  options: { headless?: boolean },
-  use: (browser: BrowserContext) => Promise<T>
+  options: {
+    headless?: boolean;
+    recordHarPath?: string;
+  },
+  use: (page: Page) => Promise<T>
 ): Promise<T> {
   if (!pluginsRegistered) {
     chromium.use(pluginStealth());
@@ -25,9 +28,16 @@ export default async function useBrowser<T>(
       `--load-extension=${ANTI_COOKIE_PATH}`, // load extension "I Don't Care About Cookies"
     ],
     locale: "en-GB", // request pages in English
+    recordHar: options.recordHarPath
+      ? {
+          path: options.recordHarPath,
+          content: "attach",
+        }
+      : undefined,
   });
+  const page = await browser.newPage();
   try {
-    return await use(browser);
+    return await use(page);
   } finally {
     await browser.close();
   }

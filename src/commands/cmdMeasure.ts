@@ -1,15 +1,11 @@
 import _ from "lodash";
 import assert from "assert";
 import ConfusionMatrix from "../util/ConfusionMatrix";
-import openDocumentStore from "../core/openDocumentStore";
-import toSimplifiedURL from "../util/toSimplifiedURL";
-import { Completion, isFailure } from "../util/Completion";
+import { isFailure } from "../util/Completion";
 import { getDatasetEntries } from "../data/passwords";
 import { getPSMAccuracy, PSMAccuracyScoreEntry } from "../core/psm/PSMAccuracy";
 import { getScoreTable } from "../core/psm/ScoreTable";
-import { InputPasswordFieldResult } from "../core/InputPasswordFieldResult";
 import { isSameSite } from "../util/site";
-import { SearchRegisterPageResult } from "../core/searchRegisterPage";
 import { TRUTH } from "../data/truth";
 import { writeFileSync } from "fs";
 import {
@@ -18,27 +14,16 @@ import {
   ScoreCandidateFilteringDetail,
 } from "../core/psm/detectPSM";
 import {
-  CHUNKS_COLLECTION_NAME,
-  PSM_ANALYSIS_COLLECTION_TYPE,
-  PSMAnalysisResult,
-} from "./cmdAnalyze";
-import {
   AbstractCallType,
-  getIPFAbstractResultFromIPFResult,
-} from "../core/psm/InputPasswordFieldAbstractResult";
+  getQPFAbstractResultsFromQPFResults,
+} from "../core/psm/QPFAbstractResult";
 import { createHash } from "crypto";
+import { extractDataPath, makeDataPath } from "../data/path";
+import DataArchive from "../data/DataArchive";
+import { RegisterPage } from "../models/RegisterPage";
 
-type SiteDetail = {
-  name: string;
-  rank: number;
-};
-
-type RegisterPage = {
-  registerPageKey: string;
-  sites: SiteDetail[];
-};
-
-type PSMRegisterPage = RegisterPage & {
+type PSMRegisterPage = {
+  registerPage: RegisterPage;
   maxPsfDetail: PSFDetail;
   totalPSFs: number;
   maxPSFAccuracyMaxDelta: number;
@@ -52,80 +37,38 @@ type PSFDetail = {
   accuracy: number;
 };
 
-export default function cmdMeasure(args: {
-  psmAnalysisId: number;
-  dbFilepath: string | undefined;
-}) {
-  const store = openDocumentStore(args.dbFilepath);
+export default function cmdMeasure(args: { analyzeOutDir: string }) {
+  const { analyzeOutDir } = args;
+  const dataName = extractDataPath(analyzeOutDir);
+  const dataArchive = DataArchive.open(makeDataPath(dataName, "data.sqlite"));
 
-  const psmAnalysisCollection = store.getCollectionById(args.psmAnalysisId);
-  assert(psmAnalysisCollection, PSM_ANALYSIS_COLLECTION_TYPE);
-  const chunksCollection = store.getCollectionByName(
-    psmAnalysisCollection.id,
-    CHUNKS_COLLECTION_NAME
-  );
-  const registrationPagesCollection = store.getCollectionById(
-    psmAnalysisCollection.parentId!
-  );
-  const sitesArray = store.getDocumentData(
-    store.getCollectionById(registrationPagesCollection.parentId!).id
-  ) as string[];
+  const rpSitesMap = dataArchive.getRegisterPageSitesMap();
 
-  // Register Pages
-
+  let totalSitesCount = 0;
   let accessedSitesCount = 0;
-  const registerPageSitesMap = new Map<string, SiteDetail[]>();
 
-  for (const {
-    id: documentId,
-    name: siteName,
-  } of store.getDocumentsByCollection(registrationPagesCollection.id)) {
-    const site: SiteDetail = {
-      name: siteName,
-      rank: sitesArray.indexOf(siteName),
-    };
+  for (const siteId of dataArchive.getRegisterPageDetectionResultRecordIds()) {
+    totalSitesCount += 1;
 
-    const completion = store.getDocumentData(
-      documentId
-    ) as Completion<SearchRegisterPageResult>;
+    const { result, site, registerPage } =
+      dataArchive.getRegisterPageDetectionResultRecord(siteId)!;
+
+    const { searchCompletion } = result;
+    assert(searchCompletion);
 
     // count if completion status is success or the failure error is not a network error
     if (
-      !isFailure(completion) ||
-      !completion.error?.message.includes("Error: page.goto: net::ERR_")
+      !isFailure(searchCompletion) ||
+      !searchCompletion.error?.message.includes("Error: page.goto: net::ERR_")
     ) {
       accessedSitesCount += 1;
     }
-
-    if (isFailure(completion)) continue;
-
-    const {
-      value: { registerPageUrl },
-    } = completion;
-    if (registerPageUrl === null) continue;
-
-    const registerPageKey = toSimplifiedURL(registerPageUrl).toString();
-    registerPageSitesMap.set(registerPageKey, [
-      ...(registerPageSitesMap.get(registerPageKey) ?? []),
-      site,
-    ]);
   }
-
-  const registerPages = [...registerPageSitesMap.entries()].map(
-    ([registerPageKey, sites]): RegisterPage => ({ registerPageKey, sites })
-  );
-  const registerPagesMap = new Map(
-    registerPages.map((registerPage) => [
-      registerPage.registerPageKey,
-      registerPage,
-    ])
-  );
-
-  // PSM Analysis
 
   let successfulDetectRegisterPagesCount = 0;
   let successfulAnalysisRegisterPagesCount = 0;
-  const psmDetectedRegisterPages: RegisterPage[] = [];
+  let registerPagesCount: number = 0;
+  let psmDetectedRegisterPagesCount: number = 0;
   const psmConfusionMatrix = new ConfusionMatrix<string>();
   const psmRegisterPages: PSMRegisterPage[] = [];
   const filteringDetail: ScoreCandidateFilteringDetail = {};
@@ -136,18 +79,24 @@ export default function cmdMeasure(args: {
     serverSideCrossSite: 0,
     serverSideNonSecure: 0,
   };
-  let truthCandidates: string[] = [];
+  const truthCandidates: RegisterPage[] = [];
 
-  for (const {
-    id: documentId,
-    name: registerPageKey,
-  } of store.getDocumentsByCollection(psmAnalysisCollection.id)) {
-    const psmAnalysisResult = store.getDocumentData(
-      documentId
-    ) as PSMAnalysisResult;
+  for (const rpId of dataArchive.getPSMAnalysisResultRecordIds()) {
+    registerPagesCount += 1;
 
-    const { testCompletion, detectCompletion, analysisCompletion } =
-      psmAnalysisResult;
+    const { result, registerPage } =
+      dataArchive.getPSMAnalysisResultRecord(rpId)!;
+    const { url: rpUrl } = registerPage;
+
+    const {
+      recordCompletion,
+      testCompletion,
+      detectCompletion,
+      analysisCompletion,
+    } = result;
+
+    assert(recordCompletion);
+    if (isFailure(recordCompletion)) continue;
 
     assert(testCompletion);
     if (isFailure(testCompletion)) continue;
@@ -158,21 +107,16 @@ export default function cmdMeasure(args: {
     if (isFailure(detectCompletion)) continue;
     successfulDetectRegisterPagesCount += 1;
 
-    const detectIpfResult = store.getDocumentData(
-      store.getDocumentByName(
-        chunksCollection.id,
-        detectCompletion.value.chunkKey
-      ).id
-    ) as InputPasswordFieldResult;
+    const { value: detectQPFResults } = detectCompletion;
     const detectAbstractResult =
-      getIPFAbstractResultFromIPFResult(detectIpfResult);
+      getQPFAbstractResultsFromQPFResults(detectQPFResults);
     const psmDetected = detectPSM(detectAbstractResult);
 
-    truthCandidates.push(registerPageKey);
+    truthCandidates.push(registerPage);
 
-    if (TRUTH.has(registerPageKey)) {
-      const truth = TRUTH.get(registerPageKey)!;
-      psmConfusionMatrix.addValue(registerPageKey, Boolean(psmDetected), truth);
+    if (TRUTH.has(rpUrl)) {
+      const truth = TRUTH.get(rpUrl)!;
+      psmConfusionMatrix.addValue(rpUrl, Boolean(psmDetected), truth);
     }
 
     const filteringDetailLocal =
@@ -184,17 +128,17 @@ export default function cmdMeasure(args: {
 
     if (!psmDetected) continue;
     const { scoreTypes } = psmDetected;
-    psmDetectedRegisterPages.push(registerPagesMap.get(registerPageKey)!);
+
+    psmDetectedRegisterPagesCount += 1;
+
     const serverSideScoreType = scoreTypes.find(
       (scoreType) => scoreType.kind === "xhrRequest"
     );
     if (serverSideScoreType) {
       psmDetectedRegisterPagesDetail.serverSide += 1;
-      if (
-        !isSameSite(new URL(serverSideScoreType.url), new URL(registerPageKey))
-      ) {
+      if (!isSameSite(new URL(serverSideScoreType.url), new URL(rpUrl))) {
         psmDetectedRegisterPagesDetail.serverSideCrossSite += 1;
-        // console.log("serverSideCrossSite", registerPageKey, serverSideScoreType.url);
+        // console.log("serverSideCrossSite", rpUrl, serverSideScoreType.url);
       }
       if (new URL(serverSideScoreType.url).protocol !== "https:") {
         psmDetectedRegisterPagesDetail.serverSideNonSecure += 1;
@@ -207,16 +151,13 @@ export default function cmdMeasure(args: {
       if (
         scoreTypes.some(
           (scoreType) =>
-            !isSameSite(
-              new URL(scoreType.sourceLoc[0]),
-              new URL(registerPageKey)
-            )
+            !isSameSite(new URL(scoreType.sourceLoc[0]), new URL(rpUrl))
         )
       ) {
         psmDetectedRegisterPagesDetail.clientSideCrossSite += 1;
         // console.log(
         //   "clientSideCrossSite",
-        //   registerPageKey,
+        //   rpUrl,
         //   scoreTypes.map((scoreType) => scoreType.sourceLoc[0])
         // );
       }
@@ -226,14 +167,9 @@ export default function cmdMeasure(args: {
     if (isFailure(analysisCompletion)) continue;
     successfulAnalysisRegisterPagesCount += 1; // WARNING! This is not equal to number of register pages in psmClusters
 
-    const analysisIpfResult = analysisCompletion.value.chunkKeys.flatMap(
-      (chunkKey) =>
-        store.getDocumentData(
-          store.getDocumentByName(chunksCollection.id, chunkKey).id
-        ) as InputPasswordFieldResult
-    );
+    const { value: analysisQPFResult } = analysisCompletion;
     const analysisAbstractResult =
-      getIPFAbstractResultFromIPFResult(analysisIpfResult);
+      getQPFAbstractResultsFromQPFResults(analysisQPFResult);
     const scoreTable = getScoreTable(analysisAbstractResult, scoreTypes);
 
     const psfDetails = _.uniqBy(
@@ -283,8 +219,8 @@ export default function cmdMeasure(args: {
     })();
 
     const psmRegisterPage = <PSMRegisterPage>{
-      registerPageKey,
-      sites: registerPageSitesMap.get(registerPageKey),
+      registerPage,
+      sites: rpSitesMap.get(rpId),
       maxPsfDetail,
       totalPSFs: psfDetails.length,
       maxPSFAccuracyMaxDelta: _.max(
@@ -310,22 +246,29 @@ export default function cmdMeasure(args: {
   // );
 
   const report = {
+    totalSitesCount,
     accessedSitesCount,
-    registerPages,
+    registerPages: registerPagesCount,
     successfulDetectRegisterPagesCount,
     successfulAnalysisRegisterPagesCount,
-    psmDetectedRegisterPages,
+    psmDetectedRegisterPages: psmDetectedRegisterPagesCount,
     psmConfusionMatrix: psmConfusionMatrix.get(),
     psmClusters,
     filteringDetail,
     psmDetectedRegisterPagesDetail,
   };
-  writeFileSync("report.json", JSON.stringify(report));
-
-  truthCandidates = _.sortBy(truthCandidates, (candidate) =>
-    _.min(registerPageSitesMap.get(candidate)!.map((s) => s.rank))
+  writeFileSync(
+    makeDataPath(dataName + ".report.json"),
+    JSON.stringify(report)
   );
-  console.log(truthCandidates.slice(0, 100), truthCandidates.slice(-50));
+
+  const truthCandidatesRanking = _.sortBy(truthCandidates, (candidate) =>
+    _.min(rpSitesMap.get(candidate.id!)!.map((s) => s.rank))
+  );
+  console.log(
+    truthCandidatesRanking.slice(0, 100),
+    truthCandidatesRanking.slice(-50)
+  );
 
   process.exit(0);
 }

@@ -1,9 +1,0 @@
-import DocumentStore from "../util/DocumentStore";
-import path from "path";
-import { rootDir } from "../env";
-
-const DB_FILEPATH = path.join(rootDir, "psm-analysis.sqlite");
-
-export default function openDocumentStore(dbFilepath?: string): DocumentStore {
-  return DocumentStore.open(dbFilepath ?? DB_FILEPATH);
-}

@@ -8,10 +8,10 @@ import {
   reLower,
   reSpecial,
   reUpper
-  } from "../data/regexps";
+  } from "../util/regexps";
 
 const entries = JSON.parse(
-  readFileSync("dataset.json", "utf8")
+  readFileSync("pwddataset.json", "utf8")
 ) as DatasetEntry[];
 
 const rnd = createSeededRandom(0);
@@ -63,4 +63,4 @@ const redactedEntries = entries.map(
 );
 assert(_.map(_.uniq(redactedEntries), 0).length === redactedEntries.length);
 
-writeFileSync("dataset-pub.json", JSON.stringify(redactedEntries));
+writeFileSync("pwddataset-public.json", JSON.stringify(redactedEntries));

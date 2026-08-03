@@ -3,7 +3,7 @@ import path from "path";
 import { promisify } from "util";
 import { rootDir } from "../env";
 
-export default async function buildSetup() {
+export default async function compileSetup() {
   return promisify<Buffer>((callback) =>
     browserify({ basedir: path.join(rootDir, "setup") })
       .add("./index.js")

@@ -1,9 +1,9 @@
-import { MutationKey } from "../InputPasswordFieldResult";
+import { MutationKey } from "../QPFResult";
 import {
   AbstractCallType,
   getAbstractCallTypeKey,
-  InputPasswordFieldAbstractResult,
-} from "./InputPasswordFieldAbstractResult";
+  QPFAbstractResultArray,
+} from "./QPFAbstractResult";
 
 export type ScoreCandidate = {
   type: AbstractCallType;
@@ -16,11 +16,11 @@ export type ScoreCandidateOccurrence = {
   mutationKeys: MutationKey[];
 };
 
-export function getScoreCandidatesFromIPFAbstractResult(
-  ipfAbstractResult: InputPasswordFieldAbstractResult
+export function getScoreCandidatesFromQPFAbstractResults(
+  qpfAbstractResults: QPFAbstractResultArray
 ): ScoreCandidate[] {
   const candidateMap = new Map<string, ScoreCandidate>();
-  for (const { password, abstractTraces } of ipfAbstractResult) {
+  for (const { password, abstractTraces } of qpfAbstractResults) {
     for (const trace of abstractTraces) {
       const { abstractCalls, mutationKeys } = trace;
       for (const abstractCall of abstractCalls) {

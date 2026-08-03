@@ -1,42 +1,50 @@
 import locatePasswordField from "./locatePasswordField";
-import { InputPasswordFieldResult, Trace } from "./InputPasswordFieldResult";
+import { QPFResultArray, Trace } from "./QPFResult";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
 
 const CAPTURE_TIMEOUT_MS: number = 3000;
+
 const SHORT_TIMEOUT_MS: number = 500;
 
-export type InputPasswordFieldHint = {
+export type QPFHint = {
   fillCapturing: boolean;
   blurCapturing: boolean;
 };
 
-export default async function inputPasswordField(
+export default async function queryPasswordField(
   page: Page,
   options: {
-    registerPageUrl: string;
-    passwordList: string[];
-    hint?: InputPasswordFieldHint;
+    rpUrl: string;
+    passwordArray: string[];
+    hint?: QPFHint;
+    isSimulating?: boolean;
   }
-): Promise<InputPasswordFieldResult> {
-  const { registerPageUrl, passwordList, hint } = options;
+): Promise<QPFResultArray> {
+  const { rpUrl, passwordArray, hint, isSimulating } = options;
 
   const {
     passwordField,
     registerForm: { frame },
-  } = await locatePasswordField(page, { registerPageUrl });
+  } = await locatePasswordField(page, { rpUrl });
 
-  const capture = (password: string): Promise<void> =>
-    frame.evaluate(`\$\$ADVICE.capture(${JSON.stringify(password)})`);
-  const captureEnd = (): Promise<Trace> =>
-    frame.evaluate("$$ADVICE.captureEnd()");
+  const capture = async (password: string): Promise<void> => {
+    if (!isSimulating) {
+      return frame.evaluate(`\$\$ADVICE.capture(${JSON.stringify(password)})`);
+    }
+  };
+  const captureEnd = async (): Promise<Trace | undefined> => {
+    if (!isSimulating) {
+      return frame.evaluate("$$ADVICE.captureEnd()");
+    }
+  };
 
-  const result: InputPasswordFieldResult = [];
+  const results: QPFResultArray = [];
   let dirty = false;
 
   await passwordField.focus();
 
-  for (const password of passwordList) {
+  for (const password of passwordArray) {
     if (dirty) {
       await passwordField.fill("");
       await timeout(SHORT_TIMEOUT_MS);
@@ -62,8 +70,8 @@ export default async function inputPasswordField(
       blurTrace = await captureEnd();
     }
 
-    result.push({ password, fillTrace, blurTrace });
+    results.push({ password, fillTrace, blurTrace });
   }
 
-  return result;
+  return results;
 }

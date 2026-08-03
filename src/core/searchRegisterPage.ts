@@ -3,9 +3,11 @@ import getFormStructures, { FormStructure } from "./getFormStructures";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
 
-const SIGNUP_REGEXP: RegExp = /sign([^0-9a-zA-Z]|\s)*up|regist(er|ration)?|join|(create|new)([^0-9a-zA-Z]|\s)*(new([^0-9a-zA-Z]|\s)*)?(acc(ount)?|us(e)?r|prof(ile)?)/i;
+const SIGNUP_REGEXP: RegExp =
+  /sign([^0-9a-zA-Z]|\s)*up|regist(er|ration)?|join|(create|new)([^0-9a-zA-Z]|\s)*(new([^0-9a-zA-Z]|\s)*)?(acc(ount)?|us(e)?r|prof(ile)?)/i;
 
-const LOGIN_REGEXP: RegExp = /(log|sign)([^0-9a-zA-Z]|\s)*(in|on)|authenticat(e|ion)|\/(my([^0-9a-zA-Z]|\s)*)?(user|account|profile|dashboard)/i;
+const LOGIN_REGEXP: RegExp =
+  /(log|sign)([^0-9a-zA-Z]|\s)*(in|on)|authenticat(e|ion)|\/(my([^0-9a-zA-Z]|\s)*)?(user|account|profile|dashboard)/i;
 
 const NAVIGATE_EXTRA_TIMEOUT_MS: number = 5000;
 
@@ -39,7 +41,7 @@ type LogRecord = {
 );
 
 export type SearchRegisterPageResult = {
-  registerPageUrl: string | null;
+  rpUrl: string | null;
   logRecords: LogRecord[];
 };
 
@@ -50,8 +52,8 @@ export default async function searchRegisterPage(
 ): Promise<SearchRegisterPageResult> {
   const logRecords: LogRecord[] = [];
 
-  function createResult(registerPageUrl: string | null): SearchRegisterPageResult {
-    return { registerPageUrl, logRecords };
+  function createResult(rpUrl: string | null): SearchRegisterPageResult {
+    return { rpUrl, logRecords };
   }
 
   async function navigate(url: string) {
@@ -97,14 +99,15 @@ export default async function searchRegisterPage(
           return candidateUrl;
         } /* else if (detectLoginPage(formStructures)) */ else {
           if (ttl > 0) {
-            const registerPageUrl = await crawl(
-              (
-                await collectCandidateEntries(SIGNUP_REGEXP)
-              ).slice(0, MAX_CANDIDATE_URLS_PER_PAGE),
+            const rpUrl = await crawl(
+              (await collectCandidateEntries(SIGNUP_REGEXP)).slice(
+                0,
+                MAX_CANDIDATE_URLS_PER_PAGE
+              ),
               ttl - 1
             );
-            if (registerPageUrl) {
-              return registerPageUrl;
+            if (rpUrl) {
+              return rpUrl;
             }
           }
         }
@@ -135,30 +138,32 @@ export default async function searchRegisterPage(
       ...(await collectCandidateEntries(SIGNUP_REGEXP)),
       ...(await collectCandidateEntries(LOGIN_REGEXP)),
     ];
-    const registerPageUrl = await crawl(
+    const rpUrl = await crawl(
       candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
     );
-    if (registerPageUrl) {
-      return createResult(registerPageUrl);
+    if (rpUrl) {
+      return createResult(rpUrl);
     }
   }
 
-  // (3) Query a search engine (Bing) for the site’s account register pages.
+  // (3) Query a search engine (DuckDuckGo) for the site’s account register pages.
   {
     logRecords.push({ type: "init-step", step: 3 });
-    await page.goto(`https://www.bing.com/search?q=${site}+register`);
+    await page.goto(
+      `https://duckduckgo.com/?q=account+register+signup+create+site%3A${site}`
+    );
     const candidateEntries = (
       await page
-        .locator("#b_results > li.b_algo h2 a")
+        .locator("article h2 a")
         .evaluateAll((anchors) =>
           anchors.map((a) => (a as HTMLAnchorElement).href)
         )
     ).map((url) => ({ url }));
-    const registerPageUrl = await crawl(
+    const rpUrl = await crawl(
       candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
     );
-    if (registerPageUrl) {
-      return createResult(registerPageUrl);
+    if (rpUrl) {
+      return createResult(rpUrl);
     }
   }
 

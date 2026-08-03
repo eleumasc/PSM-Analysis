@@ -13,7 +13,7 @@ A tool for the automated analysis of deployed Password Strength Meters (PSMs).
 2. Install the dependencies: `npm i`
 3. Run the init script: `npm run init`
 4. Build: `npm run build`
-5. Choose a password dataset and store it in the project root with name `dataset.json` (see details in Section "Password Datasets")
+5. Choose a password dataset and store it in the project root with name `pwddataset.json` (see details in Section "Password Datasets")
 
 ## How to use
 

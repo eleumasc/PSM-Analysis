@@ -1,8 +1,8 @@
 import _ from "lodash";
 import {
   AbstractCallType,
-  InputPasswordFieldAbstractResult,
-} from "./InputPasswordFieldAbstractResult";
+  QPFAbstractResultArray,
+} from "./QPFAbstractResult";
 import assert from "assert";
 
 export type ScoreTable = ScoreTableRow[];
@@ -13,10 +13,10 @@ export type ScoreTableRow = {
 };
 
 export function getScoreTable(
-  ipfAbstractResult: InputPasswordFieldAbstractResult,
+  qpfAbstractResults: QPFAbstractResultArray,
   scoreTypes: AbstractCallType[]
 ): ScoreTable {
-  return ipfAbstractResult.map(({ password, abstractTraces }) => {
+  return qpfAbstractResults.map(({ password, abstractTraces }) => {
     const abstractCalls = abstractTraces.flatMap(
       ({ abstractCalls }) => abstractCalls
     );

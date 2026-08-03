@@ -5,16 +5,15 @@ import mayBeScore from "./mayBeScore";
 import {
   Trace,
   FunctionCall,
-  InputPasswordFieldResult,
+  QPFResultArray,
   SourceLoc,
   XHRRequest,
   MutationKey,
-} from "../InputPasswordFieldResult";
+} from "../QPFResult";
 
-export type InputPasswordFieldAbstractResult =
-  InputPasswordFieldAbstractDetail[];
+export type QPFAbstractResultArray = QPFAbstractResult[];
 
-export type InputPasswordFieldAbstractDetail = {
+export type QPFAbstractResult = {
   password: string;
   abstractTraces: AbstractTrace[];
 };
@@ -52,11 +51,11 @@ export type AbstractCallType =
   | FunctionCallAbstractCallType
   | XHRRequestAbstractCallType;
 
-export function getIPFAbstractResultFromIPFResult(
-  ipfResult: InputPasswordFieldResult
-): InputPasswordFieldAbstractResult {
-  return ipfResult.map(
-    ({ password, fillTrace, blurTrace }): InputPasswordFieldAbstractDetail => {
+export function getQPFAbstractResultsFromQPFResults(
+  qpfResults: QPFResultArray
+): QPFAbstractResultArray {
+  return qpfResults.map(
+    ({ password, fillTrace, blurTrace }): QPFAbstractResult => {
       const createAbstractTraceArray = (
         traceArray: (Trace | undefined)[],
         capturePhase: CapturePhase

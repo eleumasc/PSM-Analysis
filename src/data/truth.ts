@@ -1,4 +1,4 @@
-// registerPageUrl, hasPSM
+// rpUrl, hasPSM
 
 export const TRUTH = new Map([
   // More popular

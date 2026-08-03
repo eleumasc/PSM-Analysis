@@ -1,15 +1,18 @@
 import assert from "assert";
 import { readFileSync } from "fs";
 
-export const TEST_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
+const TEST_PASSWORD: string = "fd*KZ$?J9Q2Fg!cz";
+
+export function getTestPassword(): string {
+  return TEST_PASSWORD;
+}
 
 /**
- * - First sequence exception: known patterns, increasing entropy and length, fixed complexity
  * - Neither dictionary words nor known patterns (guessability depends exclusively on entropy, bruteforce required)
  * - Increasing entropy and length in every sequence
  * - Increasing complexity
  */
-export const MONOTONE_TEST_PASSWORDS_SEQUENCES: string[][] = [
+const MONOTONE_TEST_PASSWORDS_SEQUENCES: string[][] = [
   [
     "vshb",
     "vshbnc",
@@ -44,20 +47,12 @@ export const MONOTONE_TEST_PASSWORDS_SEQUENCES: string[][] = [
   ],
 ];
 
-export const LEGACY_MONOTONE_TEST_PASSWORDS_SEQUENCES: string[][] = [
-  [
-    "a!1A",
-    "aaa!1A",
-    "aaaaa!1A",
-    "aaaaaaa!1A",
-    "aaaaaaaaa!1A",
-    "aaaaaaaaaaaaa!1A",
-  ],
-  ...MONOTONE_TEST_PASSWORDS_SEQUENCES,
-];
+export function getMonotoneTestPasswordSequences(): string[][] {
+  return MONOTONE_TEST_PASSWORDS_SEQUENCES;
+}
 
-export function getLegacyMonotoneTestPasswords(): string[] {
-  return LEGACY_MONOTONE_TEST_PASSWORDS_SEQUENCES.flat();
+export function getMonotoneTestPasswords(): string[] {
+  return MONOTONE_TEST_PASSWORDS_SEQUENCES.flat();
 }
 
 export type DatasetEntry = [string, number];
@@ -65,7 +60,7 @@ export type DatasetEntry = [string, number];
 let _datasetEntries: DatasetEntry[];
 export function getDatasetEntries(): DatasetEntry[] {
   if (!_datasetEntries) {
-    const data = JSON.parse(readFileSync("dataset.json", "utf8")) as unknown;
+    const data = JSON.parse(readFileSync("pwddataset.json", "utf8")) as unknown;
     assert(Array.isArray(data));
     assert(
       data.every(
