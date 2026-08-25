@@ -169,7 +169,7 @@ export default class DataArchive {
     const { db } = this;
 
     const stmt = db.prepare(
-      "SELECT * FROM register_page_detection_results r JOIN sites s ON s.id = r.site_id JOIN register_pages p ON p.id = r.register_page_id WHERE r.site_id = ?"
+      "SELECT * FROM register_page_detection_results r JOIN sites s ON s.id = r.site_id LEFT JOIN register_pages p ON p.id = r.register_page_id WHERE r.site_id = ?"
     );
     const row = stmt.get([siteId]);
     if (!row) {
