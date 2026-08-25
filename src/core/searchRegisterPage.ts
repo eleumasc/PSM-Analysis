@@ -3,7 +3,7 @@ import getFormStructures, { FormStructure } from "./getFormStructures";
 import { Page } from "playwright";
 import { timeout } from "../util/timeout";
 
-const SIGNUP_REGEXP: RegExp =
+const REGISTER_REGEXP: RegExp =
   /sign([^0-9a-zA-Z]|\s)*up|regist(er|ration)?|join|(create|new)([^0-9a-zA-Z]|\s)*(new([^0-9a-zA-Z]|\s)*)?(acc(ount)?|us(e)?r|prof(ile)?)/i;
 
 const LOGIN_REGEXP: RegExp =
@@ -13,8 +13,11 @@ const NAVIGATE_EXTRA_TIMEOUT_MS: number = 5000;
 
 const MAX_CANDIDATE_URLS_PER_PAGE: number = 4;
 
-type CandidateEntry = {
+type CandidateType = "register" | "login";
+
+type Candidate = {
   url: string;
+  type: CandidateType;
 };
 
 type LogRecord = {
@@ -32,11 +35,12 @@ type LogRecord = {
     }
   | {
       type: "navigate-error";
+      url: string;
       reason: string;
     }
   | {
       type: "crawl";
-      candidateEntries: CandidateEntry[];
+      candidates: Candidate[];
     }
 );
 
@@ -45,124 +49,338 @@ export type SearchRegisterPageResult = {
   logRecords: LogRecord[];
 };
 
-// register page search à la Alroomi et Li
+// Register-page search à la Alroomi and Li.
 export default async function searchRegisterPage(
   page: Page,
   site: string
 ): Promise<SearchRegisterPageResult> {
   const logRecords: LogRecord[] = [];
 
+  const siteUrl = new URL(site.includes("://") ? site : `http://${site}/`);
+
+  const siteHostname = siteUrl.hostname.replace(/^www\./i, "").toLowerCase();
+
   function createResult(rpUrl: string | null): SearchRegisterPageResult {
-    return { rpUrl, logRecords };
+    return {
+      rpUrl,
+      logRecords,
+    };
+  }
+
+  function isOnTargetDomain(url: string): boolean {
+    try {
+      const hostname = new URL(url).hostname
+        .replace(/^www\./i, "")
+        .toLowerCase();
+
+      return hostname === siteHostname || hostname.endsWith(`.${siteHostname}`);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Return the part of the URL on which candidate-keyword matching should
+   * operate.
+   *
+   * We intentionally exclude the hostname, since a domain name containing
+   * e.g. "login" or "register" should not make every URL on that domain a
+   * candidate.
+   */
+  function getUrlCandidateText(url: string): string {
+    try {
+      const parsed = new URL(url);
+      const text = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+
+      try {
+        return decodeURIComponent(text);
+      } catch {
+        return text;
+      }
+    } catch {
+      return url;
+    }
+  }
+
+  /**
+   * Classify a URL as a register or login candidate.
+   *
+   * If a URL matches both, prefer "register", since register pages are the
+   * pages we ultimately want to discover.
+   */
+  function classifyUrl(url: string): CandidateType | null {
+    const text = getUrlCandidateText(url);
+
+    if (REGISTER_REGEXP.test(text)) {
+      return "register";
+    }
+
+    if (LOGIN_REGEXP.test(text)) {
+      return "login";
+    }
+
+    return null;
+  }
+
+  /**
+   * Convert a list of URLs to candidates.
+   *
+   * Only URLs on the target domain are retained. Duplicate URLs are removed.
+   */
+  function makeCandidates(
+    urls: string[],
+    allowedTypes: ReadonlySet<CandidateType>
+  ): Candidate[] {
+    const candidates: Candidate[] = [];
+    const seen = new Set<string>();
+
+    for (const url of urls) {
+      if (!isOnTargetDomain(url)) {
+        continue;
+      }
+
+      const type = classifyUrl(url);
+
+      if (type === null || !allowedTypes.has(type)) {
+        continue;
+      }
+
+      if (seen.has(url)) {
+        continue;
+      }
+
+      seen.add(url);
+
+      candidates.push({
+        url,
+        type,
+      });
+    }
+
+    return candidates;
   }
 
   async function navigate(url: string) {
     try {
       await page.goto(url);
       await timeout(NAVIGATE_EXTRA_TIMEOUT_MS);
+
       const targetUrl = page.url();
       const formStructures = await getFormStructures(page);
-      logRecords.push({ type: "navigate", url, targetUrl, formStructures });
-      return { targetUrl, formStructures };
+
+      logRecords.push({
+        type: "navigate",
+        url,
+        targetUrl,
+        formStructures,
+      });
+
+      return {
+        targetUrl,
+        formStructures,
+      };
     } catch (e) {
       logRecords.push({
         type: "navigate-error",
-        reason: e instanceof Error ? e.stack! : String(e),
+        url,
+        reason: e instanceof Error ? (e.stack ?? e.message) : String(e),
       });
+
       throw e;
     }
   }
 
-  async function collectCandidateEntries(
-    keywordsRegExp: RegExp
-  ): Promise<CandidateEntry[]> {
-    const candidateUrls = await page
-      .locator("a", { hasText: keywordsRegExp })
+  /**
+   * Collect candidate links from the currently loaded page.
+   *
+   * Candidate detection operates on the link URL (href), not on the visible
+   * anchor text.
+   */
+  async function collectCandidates(
+    allowedTypes: ReadonlySet<CandidateType>
+  ): Promise<Candidate[]> {
+    const urls = await page
+      .locator("a[href]")
       .evaluateAll((anchors) =>
-        anchors.map((a) =>
-          new URL((a as HTMLAnchorElement).href, document.baseURI).toString()
-        )
+        anchors.map((a) => (a as HTMLAnchorElement).href)
       );
-    return candidateUrls.map((url) => ({ url }));
+
+    return makeCandidates(urls, allowedTypes);
   }
 
-  async function crawl(
-    candidateEntries: CandidateEntry[],
-    ttl?: number
+  /**
+   * Visit register candidates found on a login page.
+   *
+   * This deliberately does not recurse further: once a login page is reached,
+   * we collect further register candidates while ignoring further login
+   * candidates.
+   */
+  async function crawlRegisterCandidates(
+    candidates: Candidate[]
   ): Promise<string | null> {
-    ttl !== void 0 || (ttl = 1);
-    logRecords.push({ type: "crawl", candidateEntries });
-    for (const { url: candidateUrl } of candidateEntries) {
+    const candidatesToVisit = candidates.slice(0, MAX_CANDIDATE_URLS_PER_PAGE);
+
+    logRecords.push({
+      type: "crawl",
+      candidates: candidatesToVisit,
+    });
+
+    for (const candidate of candidatesToVisit) {
       try {
-        const { formStructures } = await navigate(candidateUrl);
+        const { targetUrl, formStructures } = await navigate(candidate.url);
+
         if (findRegisterForm(formStructures)) {
-          return candidateUrl;
-        } /* else if (detectLoginPage(formStructures)) */ else {
-          if (ttl > 0) {
-            const rpUrl = await crawl(
-              (await collectCandidateEntries(SIGNUP_REGEXP)).slice(
-                0,
-                MAX_CANDIDATE_URLS_PER_PAGE
-              ),
-              ttl - 1
-            );
-            if (rpUrl) {
-              return rpUrl;
-            }
-          }
+          return targetUrl;
         }
       } catch {
-        /* suppress */
+        // Ignore inaccessible candidates and continue.
       }
     }
+
     return null;
   }
 
-  // (1) We search for a register form on the site’s landing page.
-  // NOTE: here we also check whether the site is accessible
+  /**
+   * Visit register/login candidates originating from either:
+   *
+   *   - the landing page; or
+   *   - the search-engine results.
+   *
+   * Every candidate is first checked directly for a register form.
+   *
+   * If the candidate is a login URL and no register form is found directly,
+   * collect register candidates from that page and visit up to four of them.
+   */
+  async function crawl(candidates: Candidate[]): Promise<string | null> {
+    const candidatesToVisit = candidates.slice(0, MAX_CANDIDATE_URLS_PER_PAGE);
+
+    logRecords.push({
+      type: "crawl",
+      candidates: candidatesToVisit,
+    });
+
+    for (const candidate of candidatesToVisit) {
+      try {
+        const { targetUrl, formStructures } = await navigate(candidate.url);
+
+        if (findRegisterForm(formStructures)) {
+          return targetUrl;
+        }
+
+        if (candidate.type === "login") {
+          const registerCandidates = await collectCandidates(
+            new Set<CandidateType>(["register"])
+          );
+
+          const rpUrl = await crawlRegisterCandidates(registerCandidates);
+
+          if (rpUrl !== null) {
+            return rpUrl;
+          }
+        }
+      } catch {
+        // Ignore inaccessible candidates and continue.
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * DuckDuckGo can expose search-result links through an intermediary URL
+   * containing the real destination in the "uddg" query parameter.
+   */
+  function unwrapDuckDuckGoUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+
+      if (
+        parsed.hostname === "duckduckgo.com" ||
+        parsed.hostname.endsWith(".duckduckgo.com")
+      ) {
+        const targetUrl = parsed.searchParams.get("uddg");
+
+        if (targetUrl !== null) {
+          return targetUrl;
+        }
+      }
+    } catch {
+      // Keep the original URL.
+    }
+
+    return url;
+  }
+
+  // -------------------------------------------------------------------------
+  // (1) Search for a register form on the domain's landing page.
+  // -------------------------------------------------------------------------
   {
-    logRecords.push({ type: "init-step", step: 1 });
+    logRecords.push({
+      type: "init-step",
+      step: 1,
+    });
+
     const { targetUrl: landingPageUrl, formStructures } = await navigate(
-      `http://${site}/`
+      siteUrl.toString()
     );
+
     if (findRegisterForm(formStructures)) {
       return createResult(landingPageUrl);
     }
   }
 
-  // (2) We next crawl URL links found on the landing page that contain common
-  // keywords for account register (or login) URLs.
+  // -------------------------------------------------------------------------
+  // (2) Crawl register/login candidates found on the landing page.
+  // -------------------------------------------------------------------------
   {
-    logRecords.push({ type: "init-step", step: 2 });
-    const candidateEntries = [
-      ...(await collectCandidateEntries(SIGNUP_REGEXP)),
-      ...(await collectCandidateEntries(LOGIN_REGEXP)),
-    ];
-    const rpUrl = await crawl(
-      candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
+    logRecords.push({
+      type: "init-step",
+      step: 2,
+    });
+
+    const candidates = await collectCandidates(
+      new Set<CandidateType>(["register", "login"])
     );
-    if (rpUrl) {
+
+    const rpUrl = await crawl(candidates);
+
+    if (rpUrl !== null) {
       return createResult(rpUrl);
     }
   }
 
-  // (3) Query a search engine (DuckDuckGo) for the site’s account register pages.
+  // -------------------------------------------------------------------------
+  // (3) Query DuckDuckGo for the domain's account register pages, then apply
+  //     the same register/login candidate procedure to the results.
+  // -------------------------------------------------------------------------
   {
-    logRecords.push({ type: "init-step", step: 3 });
-    await page.goto(
-      `https://duckduckgo.com/?q=account+register+signup+create+site%3A${site}`
-    );
-    const candidateEntries = (
+    logRecords.push({
+      type: "init-step",
+      step: 3,
+    });
+
+    const query = `${siteHostname} account register signup create`;
+
+    await page.goto(`https://duckduckgo.com/?q=${encodeURIComponent(query)}`);
+
+    await timeout(NAVIGATE_EXTRA_TIMEOUT_MS);
+
+    const resultUrls = (
       await page
-        .locator("article h2 a")
+        .locator("article h2 a[href]")
         .evaluateAll((anchors) =>
           anchors.map((a) => (a as HTMLAnchorElement).href)
         )
-    ).map((url) => ({ url }));
-    const rpUrl = await crawl(
-      candidateEntries.slice(0, MAX_CANDIDATE_URLS_PER_PAGE)
+    ).map(unwrapDuckDuckGoUrl);
+
+    const candidates = makeCandidates(
+      resultUrls,
+      new Set<CandidateType>(["register", "login"])
     );
-    if (rpUrl) {
+
+    const rpUrl = await crawl(candidates);
+
+    if (rpUrl !== null) {
       return createResult(rpUrl);
     }
   }

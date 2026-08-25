@@ -38,7 +38,7 @@ export default async function getFormStructures(page: Page) {
 const getFormStructurePageFunction = (
   form: HTMLFormElement
 ): FormStructureBase => {
-  const SIGNUP_FORM_FIELDS_REGEXP: RegExp =
+  const REGISTER_FORM_FIELDS_REGEXP: RegExp =
     /full(\-|_|\s)*name|(f(irst|ore)?|m(iddle)?)(\-|_|\s)*name|(l(ast|st)?|s(u)?(r)?)(\-|_|\s)*name|prefix|month|day|year|birthdate|birthday|date(\-|_|\s)*of(\-|_|\s)*birth|(\-|_|\s)+age(\-|_|\s)+|gender|sex|addr|(post(al)?|zip)(\-|_|\s)*(code|no|num)|city|town|location|country|state|province|street|(building|bldng|flat|apartment|apt|home|house)(\-|_|\s)*(num|no)|card(\-|_|\s)*(no|num)|credit(\-|_|\s)*(no|num|card)|expire|expiration|sec(urity)?(\-|_|\s)*(no|num|cvv|code)|company|organi(z|s)ation|institut(e|ion)/i;
 
   // element visibility heuristics à la Playwright
@@ -86,7 +86,7 @@ const getFormStructurePageFunction = (
       }
     }
   }
-  const registerFormFieldsDetected = SIGNUP_FORM_FIELDS_REGEXP.test(
+  const registerFormFieldsDetected = REGISTER_FORM_FIELDS_REGEXP.test(
     form.innerHTML
   );
   return {
