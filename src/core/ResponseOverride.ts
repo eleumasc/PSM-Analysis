@@ -1,6 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { Har } from "../util/Har";
-import { INSTRUMENT_MAX_LENGTH } from "./installAnalysis";
 import instrument from "./instrument";
 import path from "path";
 
@@ -14,19 +13,20 @@ type ResponseOverride = {
   body: string;
 };
 
+export const INSTRUMENT_MAX_LENGTH: number = 16 * 1024 * 1024; // 16MB
+
 export async function createResponseOverrideMap(
-  harPath: string
+  harPath: string,
 ): Promise<ResponseOverrideMap> {
   const har = new Har(harPath);
   const mapEntryPromises = await Promise.allSettled(
     har
       .entries()
       .filter(
-        (e) =>
-          /^https?\:/.test(e.request.url) &&
-          e.response.headers
-            .find(({ name }) => name === "content-type")
-            ?.value.includes("javascript")
+        ({ request: { url: requestUrl }, response: { content } }) =>
+          /^https?\:/.test(requestUrl) &&
+          content.size !== -1 &&
+          content.mimeType.includes("javascript"),
       )
       .map(
         ({
@@ -39,13 +39,13 @@ export async function createResponseOverrideMap(
             headers: Object.fromEntries(headers.map((h) => [h.name, h.value])),
             body: har.readContent(content),
           },
-        ]
+        ],
       )
       .filter(([requestUrl, { body }]) => {
         const r = body.length < INSTRUMENT_MAX_LENGTH;
         if (!r) {
           console.error(
-            `[${requestUrl}] The script was not instrumented due to its excessive length: ${body.length}`
+            `[${requestUrl}] The script was not instrumented due to its excessive length: ${body.length}`,
           );
         }
         return r;
@@ -59,7 +59,7 @@ export async function createResponseOverrideMap(
           console.error(`[${requestUrl}] Failed to instrument script: ${e}`);
           throw e;
         }
-      })
+      }),
   );
   const mapEntries = mapEntryPromises
     .filter((x) => x.status === "fulfilled")
@@ -68,15 +68,15 @@ export async function createResponseOverrideMap(
 }
 
 export async function createResponseOverrideMapCached(
-  harPath: string
+  harPath: string,
 ): Promise<ResponseOverrideMap> {
   const cachedPath = path.join(
     path.dirname(harPath),
-    path.basename(harPath, ".har.zip") + ".override.json"
+    path.basename(harPath, ".har.zip") + ".override.json",
   );
   if (existsSync(cachedPath)) {
     const mapEntries = JSON.parse(
-      readFileSync(cachedPath).toString()
+      readFileSync(cachedPath).toString(),
     ) as ResponseOverrideMapEntry[];
     return new Map(mapEntries);
   } else {

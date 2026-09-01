@@ -3,11 +3,9 @@ import path from "path";
 import { rootDir } from "../env";
 import { createResponseOverrideMapCached } from "./ResponseOverride";
 
-export const INSTRUMENT_MAX_LENGTH: number = 4 * 1024 * 1024;
-
 export default async function installAnalysis(
   page: Page,
-  replayHarPath: string
+  replayHarPath: string,
 ) {
   const responseOverrideMap =
     await createResponseOverrideMapCached(replayHarPath);
@@ -23,7 +21,7 @@ export default async function installAnalysis(
       } else {
         return route.continue();
       }
-    }
+    },
   );
 
   await page.addInitScript({ path: path.join(rootDir, "setup.js") });
