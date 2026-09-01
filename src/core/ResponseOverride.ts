@@ -13,7 +13,7 @@ type ResponseOverride = {
   body: string;
 };
 
-export const INSTRUMENT_MAX_LENGTH: number = 16 * 1024 * 1024; // 16MB
+export const INSTRUMENT_MAX_LENGTH: number = 8 * 1024 * 1024; // 8MB
 
 export async function createResponseOverrideMap(
   harPath: string,
