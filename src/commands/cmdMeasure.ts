@@ -21,6 +21,11 @@ import { createHash } from "crypto";
 import { extractDataPath, makeDataPath } from "../data/path";
 import DataArchive from "../data/DataArchive";
 import { RegisterPage } from "../models/RegisterPage";
+import { Site } from "../models/Site";
+
+type RegisterPageSitesEntry = RegisterPage & {
+  sites: Site[];
+};
 
 type PSMRegisterPage = {
   registerPage: RegisterPage;
@@ -65,9 +70,9 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
     }
   }
 
+  let registerPages: RegisterPageSitesEntry[] = [];
   let successfulDetectRegisterPagesCount = 0;
   let successfulAnalysisRegisterPagesCount = 0;
-  let registerPagesCount: number = 0;
   let psmDetectedRegisterPagesCount: number = 0;
   const psmConfusionMatrix = new ConfusionMatrix<string>();
   const psmRegisterPages: PSMRegisterPage[] = [];
@@ -82,11 +87,11 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
   const truthCandidates: RegisterPage[] = [];
 
   for (const rpId of dataArchive.getPSMAnalysisResultRecordIds()) {
-    registerPagesCount += 1;
-
     const { result, registerPage } =
       dataArchive.getPSMAnalysisResultRecord(rpId)!;
     const { url: rpUrl } = registerPage;
+
+    registerPages.push({ ...registerPage, sites: rpSitesMap.get(rpId)! });
 
     const {
       recordCompletion,
@@ -132,7 +137,7 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
     psmDetectedRegisterPagesCount += 1;
 
     const serverSideScoreType = scoreTypes.find(
-      (scoreType) => scoreType.kind === "xhrRequest"
+      (scoreType) => scoreType.kind === "xhrRequest",
     );
     if (serverSideScoreType) {
       psmDetectedRegisterPagesDetail.serverSide += 1;
@@ -145,13 +150,13 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
       }
     } else {
       assert(
-        scoreTypes.every((scoreType) => scoreType.kind === "functionCall")
+        scoreTypes.every((scoreType) => scoreType.kind === "functionCall"),
       );
       psmDetectedRegisterPagesDetail.clientSide += 1;
       if (
         scoreTypes.some(
           (scoreType) =>
-            !isSameSite(new URL(scoreType.sourceLoc[0]), new URL(rpUrl))
+            !isSameSite(new URL(scoreType.sourceLoc[0]), new URL(rpUrl)),
         )
       ) {
         psmDetectedRegisterPagesDetail.clientSideCrossSite += 1;
@@ -180,13 +185,13 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
           getDatasetEntries(),
           ([password, frequency], rankIndex): PSMAccuracyScoreEntry => {
             const scoreTableRow = scoreTable.find(
-              ({ password: passwordSearched }) => passwordSearched === password
+              ({ password: passwordSearched }) => passwordSearched === password,
             );
             assert(scoreTableRow);
             const evaluatedScore =
               scoreTableRow.scores[scoreTypeIndex] ?? -Infinity;
             return { frequency, referenceScore: rankIndex + 1, evaluatedScore };
-          }
+          },
         );
         const scores = _.map(scoreEntries, (e) => e.evaluatedScore);
         const accuracy = getPSMAccuracy(scoreEntries);
@@ -199,7 +204,7 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
           accuracy: !isNaN(accuracy) ? accuracy : 0, // 0 means "no correlation"
         };
       }),
-      ({ signature }) => signature
+      ({ signature }) => signature,
     );
 
     const maxPsfDetail = _.maxBy(psfDetails, ({ accuracy }) => accuracy);
@@ -225,8 +230,8 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
       totalPSFs: psfDetails.length,
       maxPSFAccuracyMaxDelta: _.max(
         psfDetails.map(({ accuracy }) =>
-          Math.abs(maxPsfDetail.accuracy - accuracy)
-        )
+          Math.abs(maxPsfDetail.accuracy - accuracy),
+        ),
       ),
       isZxcvbn,
     };
@@ -234,7 +239,7 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
   }
 
   const psmClusters = _.values(
-    _.groupBy(psmRegisterPages, ({ maxPsfDetail: { signature } }) => signature)
+    _.groupBy(psmRegisterPages, ({ maxPsfDetail: { signature } }) => signature),
   );
 
   // console.log(
@@ -248,7 +253,7 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
   const report = {
     totalSitesCount,
     accessedSitesCount,
-    registerPages: registerPagesCount,
+    registerPages,
     successfulDetectRegisterPagesCount,
     successfulAnalysisRegisterPagesCount,
     psmDetectedRegisterPages: psmDetectedRegisterPagesCount,
@@ -259,15 +264,15 @@ export default function cmdMeasure(args: { analyzeOutDir: string }) {
   };
   writeFileSync(
     makeDataPath(dataName + ".report.json"),
-    JSON.stringify(report)
+    JSON.stringify(report),
   );
 
   const truthCandidatesRanking = _.sortBy(truthCandidates, (candidate) =>
-    _.min(rpSitesMap.get(candidate.id!)!.map((s) => s.rank))
+    _.min(rpSitesMap.get(candidate.id!)!.map((s) => s.rank)),
   );
   console.log(
     truthCandidatesRanking.slice(0, 100),
-    truthCandidatesRanking.slice(-50)
+    truthCandidatesRanking.slice(-50),
   );
 
   process.exit(0);
