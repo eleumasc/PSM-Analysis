@@ -1,5 +1,6 @@
 import cmdAnalyze from "./commands/cmdAnalyze";
 import cmdMeasure from "./commands/cmdMeasure";
+import cmdPlots from "./commands/cmdPlots";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -24,7 +25,7 @@ async function main() {
             type: "boolean",
             default: false,
           }),
-      (args) => cmdAnalyze({ action: "create", ...args })
+      (args) => cmdAnalyze({ action: "create", ...args }),
     )
     .command(
       "analyze:resume <analyzeOutDir>",
@@ -43,7 +44,7 @@ async function main() {
             type: "boolean",
             default: false,
           }),
-      (args) => cmdAnalyze({ action: "resume", ...args })
+      (args) => cmdAnalyze({ action: "resume", ...args }),
     )
 
     .command(
@@ -54,7 +55,18 @@ async function main() {
           type: "string",
           demandOption: true,
         }),
-      (args) => cmdMeasure(args)
+      (args) => cmdMeasure(args),
+    )
+
+    .command(
+      "plots <reportFilename>",
+      "Generate plots from a report",
+      (yargs) =>
+        yargs.positional("reportFilename", {
+          type: "string",
+          demandOption: true,
+        }),
+      (args) => cmdPlots(args),
     )
 
     .demandCommand(1, "You must provide a valid command.")

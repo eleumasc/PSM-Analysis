@@ -1,6 +1,6 @@
 FROM node:22.19.0-slim
 
-RUN apt update && apt install -y sqlite3 curl p7zip-full build-essential python3 python3-dev make g++
+RUN apt update && apt install -y sqlite3 curl p7zip-full build-essential python3 python3-dev python3-matplotlib python3-numpy make g++
 
 WORKDIR /root
 
@@ -17,6 +17,7 @@ COPY ./.env ./.env
 COPY ./tsconfig.json ./tsconfig.json
 COPY ./setup ./setup
 COPY ./src ./src
+COPY ./plots ./plots
 
 RUN npx tsc
 
