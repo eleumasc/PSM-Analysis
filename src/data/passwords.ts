@@ -60,17 +60,7 @@ export type DatasetEntry = [string, number];
 let _datasetEntries: DatasetEntry[];
 export function getDatasetEntries(): DatasetEntry[] {
   if (!_datasetEntries) {
-    const data = JSON.parse(readFileSync("pwddataset.json", "utf8")) as unknown;
-    assert(Array.isArray(data));
-    assert(
-      data.every(
-        (e): e is DatasetEntry =>
-          Array.isArray(e) &&
-          e.length === 2 &&
-          typeof e[0] === "string" &&
-          typeof e[1] === "number"
-      )
-    );
+    const data = _parseDatasetEntries(readFileSync("pwddataset.json", "utf8"));
     _datasetEntries = data;
   }
   return _datasetEntries;
@@ -78,4 +68,19 @@ export function getDatasetEntries(): DatasetEntry[] {
 
 export function getDatasetPasswords(): string[] {
   return getDatasetEntries().map(([password]) => password);
+}
+
+export function _parseDatasetEntries(raw: string): DatasetEntry[] {
+  const cooked = JSON.parse(raw) as unknown;
+  assert(Array.isArray(cooked));
+  assert(
+    cooked.every(
+      (e): e is DatasetEntry =>
+        Array.isArray(e) &&
+        e.length === 2 &&
+        typeof e[0] === "string" &&
+        typeof e[1] === "number",
+    ),
+  );
+  return cooked;
 }
