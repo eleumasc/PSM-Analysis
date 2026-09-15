@@ -14,6 +14,7 @@ import {
 import assert from "assert";
 import { QPFResult } from "../core/QPFResult";
 import { toArray } from "iter-tools";
+import { PerformanceResult } from "../core/PerformanceResult";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (
@@ -52,6 +53,11 @@ CREATE TABLE IF NOT EXISTS qpf_results (
   UNIQUE (register_page_id, step, password),
   FOREIGN KEY (register_page_id) REFERENCES register_pages (id)
 );
+CREATE TABLE IF NOT EXISTS performance_results (
+  register_page_id INTEGER PRIMARY KEY,
+  data JSON NOT NULL,
+  FOREIGN KEY (register_page_id) REFERENCES register_pages (id)
+);
 `;
 
 const QPFResultSteps = {
@@ -72,7 +78,7 @@ export default class DataArchive {
   setMeta(name: string, data: string): void {
     const { db } = this;
     const stmt = db.prepare(
-      "INSERT OR REPLACE INTO meta (name, data) VALUES (?, ?)"
+      "INSERT OR REPLACE INTO meta (name, data) VALUES (?, ?)",
     );
     stmt.run([name, data]);
   }
@@ -103,7 +109,7 @@ export default class DataArchive {
   *getPendingSitesForRegisterPageDetection(): IterableIterator<Site> {
     const { db } = this;
     const stmt = db.prepare(
-      "SELECT * FROM sites s WHERE NOT EXISTS (SELECT * FROM register_page_detection_results r WHERE r.site_id = s.id)"
+      "SELECT * FROM sites s WHERE NOT EXISTS (SELECT * FROM register_page_detection_results r WHERE r.site_id = s.id)",
     );
     for (const row of stmt.iterate()) {
       yield SiteConstructor(row);
@@ -112,7 +118,7 @@ export default class DataArchive {
 
   completeRegisterPageDetection(
     siteId: number,
-    result: RegisterPageDetectionResult
+    result: RegisterPageDetectionResult,
   ): void {
     const { searchCompletion } = result;
     assert(searchCompletion);
@@ -130,18 +136,18 @@ export default class DataArchive {
       let rpId: number | null = null;
       if (rpUrl) {
         const stmtInsertRegisterPage = db.prepare(
-          "INSERT OR IGNORE INTO register_pages (url) VALUES (?)"
+          "INSERT OR IGNORE INTO register_pages (url) VALUES (?)",
         );
         stmtInsertRegisterPage.run([rpUrl]);
 
         const stmtSelectRegisterPage = db.prepare(
-          "SELECT * FROM register_pages WHERE url = ?"
+          "SELECT * FROM register_pages WHERE url = ?",
         );
         rpId = (stmtSelectRegisterPage.get([rpUrl]) as { id: number }).id;
       }
 
       const stmtInsertRegisterPageDetectionResult = db.prepare(
-        "INSERT INTO register_page_detection_results (site_id, data, register_page_id) VALUES (?, ?, ?)"
+        "INSERT INTO register_page_detection_results (site_id, data, register_page_id) VALUES (?, ?, ?)",
       );
       stmtInsertRegisterPageDetectionResult.run([
         siteId,
@@ -155,7 +161,7 @@ export default class DataArchive {
     const { db } = this;
 
     const stmt = db.prepare(
-      "SELECT site_id FROM register_page_detection_results"
+      "SELECT site_id FROM register_page_detection_results",
     );
     for (const row of stmt.iterate()) {
       const { site_id: siteId } = row as { site_id: number };
@@ -164,12 +170,12 @@ export default class DataArchive {
   }
 
   getRegisterPageDetectionResultRecord(
-    siteId: number
+    siteId: number,
   ): RegisterPageDetectionResultRecord | null {
     const { db } = this;
 
     const stmt = db.prepare(
-      "SELECT * FROM register_page_detection_results r JOIN sites s ON s.id = r.site_id LEFT JOIN register_pages p ON p.id = r.register_page_id WHERE r.site_id = ?"
+      "SELECT * FROM register_page_detection_results r JOIN sites s ON s.id = r.site_id LEFT JOIN register_pages p ON p.id = r.register_page_id WHERE r.site_id = ?",
     );
     const row = stmt.get([siteId]);
     if (!row) {
@@ -202,7 +208,7 @@ export default class DataArchive {
   *getPendingRegisterPagesForPSMAnalysis(): IterableIterator<RegisterPage> {
     const { db } = this;
     const stmt = db.prepare(
-      "SELECT * FROM register_pages p WHERE NOT EXISTS (SELECT * FROM psm_analysis_results r WHERE r.register_page_id = p.id)"
+      "SELECT * FROM register_pages p WHERE NOT EXISTS (SELECT * FROM psm_analysis_results r WHERE r.register_page_id = p.id)",
     );
     for (const row of stmt.iterate()) {
       yield RegisterPageConstructor(row);
@@ -215,7 +221,7 @@ export default class DataArchive {
     const { db } = this;
     db.transaction(() => {
       const stmtInsertQPFResult = db.prepare(
-        "INSERT INTO qpf_results (register_page_id, step, password, data) VALUES (?, ?, ?, ?)"
+        "INSERT INTO qpf_results (register_page_id, step, password, data) VALUES (?, ?, ?, ?)",
       );
       const insertQPFResult = (step: number, qpfResult: QPFResult) => {
         stmtInsertQPFResult.run([
@@ -250,7 +256,7 @@ export default class DataArchive {
       }
 
       const stmtInsertPSMAnalysisResult = db.prepare(
-        "INSERT INTO psm_analysis_results (register_page_id, data) VALUES (?, ?)"
+        "INSERT INTO psm_analysis_results (register_page_id, data) VALUES (?, ?)",
       );
       stmtInsertPSMAnalysisResult.run([rpId, JSON.stringify($result)]);
     })();
@@ -260,7 +266,7 @@ export default class DataArchive {
     const { db } = this;
 
     const stmt = db.prepare(
-      "SELECT register_page_id FROM psm_analysis_results"
+      "SELECT register_page_id FROM psm_analysis_results",
     );
     for (const row of stmt.iterate()) {
       const { register_page_id: registerPageId } = row as {
@@ -274,7 +280,7 @@ export default class DataArchive {
     const { db } = this;
 
     const stmtSelectPSMAnalysisResult = db.prepare(
-      "SELECT * FROM psm_analysis_results r JOIN register_pages p ON p.id = r.register_page_id WHERE r.register_page_id = ?"
+      "SELECT * FROM psm_analysis_results r JOIN register_pages p ON p.id = r.register_page_id WHERE r.register_page_id = ?",
     );
     const row = stmtSelectPSMAnalysisResult.get([rpId]);
     if (!row) {
@@ -290,10 +296,10 @@ export default class DataArchive {
     const { testCompletion, detectCompletion, analysisCompletion } = $result;
 
     const stmtSelectQPFResults = db.prepare(
-      "SELECT data FROM qpf_results WHERE register_page_id = ? AND step = ? ORDER BY id"
+      "SELECT data FROM qpf_results WHERE register_page_id = ? AND step = ? ORDER BY id",
     );
     const getQPFResultsByStep = function* (
-      step: number
+      step: number,
     ): IterableIterator<QPFResult> {
       for (const row of stmtSelectQPFResults.iterate([rpId, step])) {
         const { data } = row as { data: string };
@@ -308,7 +314,7 @@ export default class DataArchive {
       result = {
         ...result,
         testCompletion: Success(
-          toArray(getQPFResultsByStep(QPFResultSteps.TEST))
+          toArray(getQPFResultsByStep(QPFResultSteps.TEST)),
         ),
       };
     }
@@ -317,7 +323,7 @@ export default class DataArchive {
       result = {
         ...result,
         detectCompletion: Success(
-          toArray(getQPFResultsByStep(QPFResultSteps.DETECT))
+          toArray(getQPFResultsByStep(QPFResultSteps.DETECT)),
         ),
       };
     }
@@ -326,7 +332,7 @@ export default class DataArchive {
       result = {
         ...result,
         analysisCompletion: Success(
-          toArray(getQPFResultsByStep(QPFResultSteps.ANALYSIS))
+          toArray(getQPFResultsByStep(QPFResultSteps.ANALYSIS)),
         ),
       };
     }
@@ -342,7 +348,7 @@ export default class DataArchive {
     const map = new Map<number, Site[]>();
 
     const stmt = db.prepare(
-      "SELECT * FROM register_page_detection_results r JOIN sites s ON s.id = r.site_id WHERE r.register_page_id IS NOT NULL"
+      "SELECT * FROM register_page_detection_results r JOIN sites s ON s.id = r.site_id WHERE r.register_page_id IS NOT NULL",
     );
     for (const row of stmt.iterate()) {
       const {
@@ -363,5 +369,29 @@ export default class DataArchive {
     }
 
     return map;
+  }
+
+  completePerformance(rpId: number, result: PerformanceResult): void {
+    const { db } = this;
+
+    const stmt = db.prepare(
+      "INSERT INTO performance_results (register_page_id, data) VALUES (?, ?)",
+    );
+    stmt.run([rpId, JSON.stringify(result)]);
+  }
+
+  getPerformanceResult(rpId: number): PerformanceResult | null {
+    const { db } = this;
+
+    const stmt = db.prepare(
+      "SELECT data FROM performance_results WHERE register_page_id = ?",
+    );
+    const row = stmt.get([rpId]);
+    if (!row) {
+      return null;
+    }
+
+    const { data } = row as { data: string };
+    return JSON.parse(data) as PerformanceResult;
   }
 }

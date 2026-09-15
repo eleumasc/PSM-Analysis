@@ -1,5 +1,6 @@
 import cmdAnalyze from "./commands/cmdAnalyze";
 import cmdMeasure from "./commands/cmdMeasure";
+import cmdPerformance from "./commands/cmdPerformance";
 import cmdPlots from "./commands/cmdPlots";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -56,6 +57,17 @@ async function main() {
           demandOption: true,
         }),
       (args) => cmdMeasure(args),
+    )
+
+    .command(
+      "performance <analyzeOutDir>",
+      "Measure analysis performance",
+      (yargs) =>
+        yargs.positional("analyzeOutDir", {
+          type: "string",
+          demandOption: true,
+        }),
+      (args) => cmdPerformance(args),
     )
 
     .command(

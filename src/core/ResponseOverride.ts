@@ -3,11 +3,11 @@ import { Har } from "../util/Har";
 import instrument from "./instrument";
 import path from "path";
 
-type ResponseOverrideMap = Map<string, ResponseOverride>;
+export type ResponseOverrideMap = Map<string, ResponseOverride>;
 
-type ResponseOverrideMapEntry = [string, ResponseOverride];
+export type ResponseOverrideMapEntry = [string, ResponseOverride];
 
-type ResponseOverride = {
+export type ResponseOverride = {
   status: number;
   headers: { [key: string]: string };
   body: string;
