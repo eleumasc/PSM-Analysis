@@ -19,7 +19,7 @@ import {
   PerformanceResult,
 } from "../core/PerformanceResult";
 import { toArray } from "iter-tools";
-import { stddev } from "../util/math";
+import { stdev } from "../util/math";
 
 export const RUN_MLT_TIMEOUT_MS: number = 3 * 60 * 1000; // 3 minutes
 
@@ -121,7 +121,7 @@ export default async function cmdPerformance(args: { analyzeOutDir: string }) {
     (r) => _.mean(r.analysisLoadTimes) / _.mean(r.standardLoadTimes),
   );
   console.log("Overhead (avg)", _.mean(overheads));
-  console.log("Overhead (stddev)", stddev(overheads));
+  console.log("Overhead (stdev)", stdev(overheads));
 
   process.exit(0);
 }
