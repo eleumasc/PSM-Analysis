@@ -101,7 +101,7 @@ export default async function cmdPerformance(args: { analyzeOutDir: string }) {
     console.log(`end performance ${registerPage.url}`);
   }
 
-  console.log("Failure", performanceResults.length);
+  console.log("Total", performanceResults.length);
   console.log(
     "Success",
     performanceResults.filter((r) => isSuccess(r.completion)).length,
