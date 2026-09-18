@@ -11,7 +11,7 @@ import currentTime from "../util/currentTime";
 async function main(args: { datasetPath: string }) {
   const { datasetPath } = args;
   const datasetEntries: DatasetEntry[] = _parseDatasetEntries(
-    readFileSync(extractDataPath(datasetPath), "utf8"),
+    readFileSync(makeDataPath(extractDataPath(datasetPath)), "utf8"),
   );
   assert(datasetEntries.length > 0);
 
@@ -19,18 +19,11 @@ async function main(args: { datasetPath: string }) {
   assert(getPSMAccuracy(accScoreEntries) === 1);
   const maxScore = accScoreEntries.at(-1)!.referenceScore + 1;
 
-  const res = accScoreEntries.map(
-    (entry, index) =>
-      1 -
-      _.min(
-        _.range(0, maxScore + 2).map((varScore) =>
-          getPSMAccuracy([
-            ...accScoreEntries.slice(0, index),
-            ...accScoreEntries.slice(index + 1),
-            { ...entry, evaluatedScore: varScore },
-          ]),
-        ),
-      )!,
+  const res = _.range(0, maxScore + 2).map((varScore) =>
+    getPSMAccuracy([
+      ...accScoreEntries.slice(1),
+      { ...accScoreEntries[0], evaluatedScore: varScore },
+    ]),
   );
 
   writeFileSync(
